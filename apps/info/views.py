@@ -65,7 +65,9 @@ def info_list_ajax(request):
     paginator = Paginator(infos_list, 10)
     page_number = request.GET.get('page', 1)
     infos = paginator.get_page(page_number)
-    data = list(infos.object_list.values('id', 'name', 'age', 'address', 'email'))
+    data = list(infos.object_list.values(
+        'id', 'name', 'id_number', 'age', 'address', 'email'
+    ))
     return JsonResponse({
         'data': data,
         'has_next': infos.has_next(),
@@ -83,6 +85,7 @@ def info_get_ajax(request, pk):
     return JsonResponse({
         'id': info.id,
         'name': info.name,
+        'id_number': info.id_number,
         'age': info.age,
         'address': info.address,
         'email': info.email,
@@ -103,12 +106,22 @@ def info_save_ajax(request):
         is_update = False
 
     name = request.POST.get('name', '').strip()
+    id_number = request.POST.get('id_number', '').strip()
     age = request.POST.get('age', '').strip()
     address = request.POST.get('address', '').strip()
     email = request.POST.get('email', '').strip()
 
     if not name:
         return JsonResponse({'error': 'Name is required.'}, status=400)
+
+    if not id_number:
+        return JsonResponse({'error': 'ID number is required.'}, status=400)
+
+    dup = Info.objects.filter(id_number=id_number)
+    if info.pk:
+        dup = dup.exclude(pk=info.pk)
+    if dup.exists():
+        return JsonResponse({'error': 'ID number already registered.'}, status=400)
 
     if not age:
         return JsonResponse({'error': 'Age is required.'}, status=400)
@@ -131,6 +144,7 @@ def info_save_ajax(request):
             return JsonResponse({'error': 'Enter a valid email address.'}, status=400)
 
     info.name = name
+    info.id_number = id_number
     info.age = age_value
     info.address = address
     info.email = email
@@ -155,6 +169,7 @@ def info_save_ajax(request):
         'status': 'success',
         'id': info.id,
         'name': info.name,
+        'id_number': info.id_number,
         'age': info.age,
         'address': info.address,
         'email': info.email,

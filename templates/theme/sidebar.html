@@ -6,8 +6,8 @@
           <i class="fa-solid fa-shield-halved"></i>
         </span>
         <span class="lh-1">
-          <span class="dh-brand-name">Project<span class="text-warning">V3</span></span>
-          <span class="dh-brand-sub">Management System</span>
+          <span class="dh-brand-name">Class<span class="text-warning">Forge</span></span>
+          <span class="dh-brand-sub">Code Management System</span>
         </span>
       </a>
     </div>
@@ -41,6 +41,7 @@
           </a>
         </li>
 
+        {% if user.is_superuser %}
         <li class="nav-item">
           <a class="nav-link {% if request.resolver_match.app_name == 'users' %}active{% endif %}" href="{% url 'users:user_list' %}">
             <span class="nav-link-icon d-md-none d-lg-inline-block">
@@ -49,15 +50,38 @@
             <span class="nav-link-title">Users</span>
           </a>
         </li>
+        {% endif %}
 
+        <li class="nav-item">
+          <a class="nav-link {% if request.resolver_match.app_name == 'courses' and request.resolver_match.url_name != 'my_grades' %}active{% endif %}" href="{% url 'courses:course_list' %}">
+            <span class="nav-link-icon d-md-none d-lg-inline-block">
+              <i class="nav-icon fas fa-book"></i>
+            </span>
+            <span class="nav-link-title">Courses</span>
+          </a>
+        </li>
+
+        {% if not user.is_staff and not user.is_superuser %}
+        <li class="nav-item">
+          <a class="nav-link {% if request.resolver_match.url_name == 'my_grades' %}active{% endif %}" href="{% url 'courses:my_grades' %}">
+            <span class="nav-link-icon d-md-none d-lg-inline-block">
+              <i class="nav-icon fas fa-graduation-cap"></i>
+            </span>
+            <span class="nav-link-title">My Grades</span>
+          </a>
+        </li>
+        {% endif %}
+
+        {% if user.is_staff or user.is_superuser %}
         <li class="nav-item">
           <a class="nav-link {% if request.resolver_match.app_name == 'info' %}active{% endif %}" href="{% url 'info:info_list' %}">
             <span class="nav-link-icon d-md-none d-lg-inline-block">
               <i class="nav-icon fas fa-address-card"></i>
             </span>
-            <span class="nav-link-title">Info</span>
+            <span class="nav-link-title">Student Info</span>
           </a>
         </li>
+        {% endif %}
 
         {% if user.is_authenticated %}
         <li class="nav-item d-lg-none">
@@ -77,7 +101,7 @@
               <span class="min-w-0 flex-grow-1">
                 <span class="dh-user-name">{{ user.username }}</span>
                 <span class="dh-user-role">
-                  {% if user.is_superuser %}Administrator{% elif user.is_authenticated %}Instructor{% endif %}
+                  {% if user.is_superuser %}Administrator{% elif user.is_staff %}Instructor{% elif user.is_authenticated %}Student{% endif %}
                 </span>
               </span>
             </a>

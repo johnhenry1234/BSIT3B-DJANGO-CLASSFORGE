@@ -1,0 +1,91 @@
+{% extends "theme/base.html" %}
+{% block content %}
+<div class="container-xl">
+  <div class="page-header d-print-none" aria-label="Page header">
+    <div class="container-xl">
+      <div class="row align-items-center">
+        <div class="col">
+          <div class="page-pretitle">ClassForge · Grade Submission</div>
+          <h2 class="page-title mb-0">
+            {{ submission.student.get_full_name|default:submission.student.username }} —
+            {{ submission.assignment.title }} (v{{ submission.version }})
+          </h2>
+          <div class="text-muted mt-1">
+            Submitted {{ submission.submitted_at|date:"M j, Y g:i A" }} · Max score {{ submission.assignment.max_score }}
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+  <br>
+
+  {% for message in messages %}
+  <div class="alert alert-info alert-dismissible" role="alert">
+    <div>{{ message }}</div>
+    <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+  </div>
+  {% endfor %}
+
+  <div class="card mb-3">
+    <div class="card-header"><div class="card-title">Submission v{{ submission.version }}</div></div>
+    <div class="card-body">
+      {% if submission.file_attachment %}
+      <p><a href="{{ submission.file_attachment.url }}" class="btn btn-sm btn-outline-primary"><i class="fas fa-download me-2"></i>Download Attachment</a></p>
+      {% endif %}
+      {% if submission.text_content %}
+      <div class="text-muted" style="white-space: pre-wrap;">{{ submission.text_content }}</div>
+      {% endif %}
+      {% if not submission.file_attachment and not submission.text_content %}
+      <p class="text-muted">No content.</p>
+      {% endif %}
+    </div>
+  </div>
+
+  <div class="card">
+    <form method="POST">
+      <div class="card-body">
+        {% csrf_token %}
+        {% if form.non_field_errors %}
+        <div class="alert alert-danger">{{ form.non_field_errors }}</div>
+        {% endif %}
+        {% if form.score.errors %}<div class="alert alert-danger">{{ form.score.errors }}</div>{% endif %}
+        <div class="row g-3">
+          <div class="col-md-4">
+            <label class="form-label">Score (max {{ submission.assignment.max_score }})</label>
+            {{ form.score }}
+          </div>
+          <div class="col-md-8">
+            <label class="form-label">Publish</label>
+            <div class="form-check form-switch mt-1">
+              {{ form.is_published }}
+              <label class="form-check-label" for="{{ form.is_published.id_for_label }}">Visible to student</label>
+            </div>
+          </div>
+          <div class="col-12">
+            <label class="form-label">Feedback</label>
+            {{ form.feedback }}
+          </div>
+        </div>
+      </div>
+      <div class="card-footer d-flex gap-2 align-items-center">
+        <a href="{% url 'courses:assignment_detail' submission.assignment_id %}" class="btn btn-ghost-secondary">Cancel</a>
+        <button type="submit" class="btn btn-primary ms-auto">Save Grade</button>
+      </div>
+    </form>
+  </div>
+
+  {% if existing %}
+  <div class="card mt-3">
+    <div class="card-body d-flex align-items-center gap-2">
+      <span class="text-muted">This grade is currently <strong>{% if existing.is_published %}published{% else %}a draft{% endif %}</strong>.</span>
+      <form method="POST" action="{% url 'courses:grade_publish_toggle' existing.id %}" class="d-inline ms-auto">
+        {% csrf_token %}
+        <button type="submit" class="btn btn-outline-secondary">
+          {% if existing.is_published %}Unpublish{% else %}Publish{% endif %}
+        </button>
+      </form>
+    </div>
+  </div>
+  {% endif %}
+</div>
+{% endblock %}

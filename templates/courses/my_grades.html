@@ -1,0 +1,42 @@
+{% extends "theme/base.html" %}
+{% block content %}
+<div class="container-xl">
+  <div class="page-header d-print-none" aria-label="Page header">
+    <div class="container-xl">
+      <div class="row align-items-center">
+        <div class="col">
+          <div class="page-pretitle">ClassForge</div>
+          <h2 class="page-title mb-0">My Grades</h2>
+          <div class="text-muted mt-1">Only published grades are shown.</div>
+        </div>
+      </div>
+    </div>
+  </div>
+  <br>
+  <div class="card">
+    <div class="table-responsive">
+      <table class="table table-vcenter table-hover card-table text-nowrap">
+        <thead>
+          <tr><th>Course</th><th>Assignment</th><th>Version</th><th>Score</th><th>Feedback</th><th>Graded</th></tr>
+        </thead>
+        <tbody>
+        {% for grade in grades %}
+        <tr>
+          <td><span class="badge bg-primary-lt text-primary">{{ grade.submission.assignment.course.code }}</span></td>
+          <td class="fw-semibold">
+            <a href="{% url 'courses:assignment_detail' grade.submission.assignment_id %}">{{ grade.submission.assignment.title }}</a>
+          </td>
+          <td class="text-muted">v{{ grade.submission.version }}</td>
+          <td><span class="badge bg-success-lt text-success">{{ grade.score }} / {{ grade.submission.assignment.max_score }}</span></td>
+          <td class="text-muted" style="max-width: 300px; white-space: normal;">{{ grade.feedback|default:"—"|truncatechars:100 }}</td>
+          <td class="text-muted">{{ grade.graded_at|date:"M j, Y" }}</td>
+        </tr>
+        {% empty %}
+        <tr><td colspan="6"><div class="empty py-4"><p class="empty-title">No published grades yet</p></div></td></tr>
+        {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+{% endblock %}

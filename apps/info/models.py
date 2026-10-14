@@ -7,6 +7,7 @@ from django.db import models
 
 class Info(models.Model):
     name = models.CharField(max_length=255)
+    id_number = models.CharField(max_length=50, unique=True)
     age = models.PositiveIntegerField(validators=[MinValueValidator(1), MaxValueValidator(150)])
     address = models.CharField(max_length=255)
     email = models.EmailField(max_length=255, blank=True)

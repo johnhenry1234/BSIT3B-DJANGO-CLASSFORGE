@@ -61,6 +61,7 @@
           <tr>
             <th>#</th>
             <th>Name</th>
+            <th>ID Number</th>
             <th>Age</th>
             <th>Address</th>
             <th>Email</th>
@@ -72,12 +73,13 @@
         <tr data-row-id="{{ info.id }}">
             <td class="text-muted">{{ forloop.counter0|add:infos.start_index }}</td>
             <td class="fw-semibold">{{ info.name }}</td>
+            <td><span class="badge bg-azure-lt text-azure">{{ info.id_number }}</span></td>
             <td><span class="badge bg-primary-lt text-primary">{{ info.age }}</span></td>
             <td class="text-muted">{{ info.address }}</td>
             <td class="text-muted">{{ info.email|default:"—" }}</td>
             <td>
               <div class="d-flex gap-1">
-                <button type="button" class="btn btn-ghost-secondary btn-icon btn-sm" data-bs-toggle="modal" data-bs-target="#infoModal" data-mode="edit" data-id="{{ info.id }}" data-name="{{ info.name }}" data-age="{{ info.age }}" data-address="{{ info.address }}" data-email="{{ info.email }}" title="Edit">
+                <button type="button" class="btn btn-ghost-secondary btn-icon btn-sm" data-bs-toggle="modal" data-bs-target="#infoModal" data-mode="edit" data-id="{{ info.id }}" data-name="{{ info.name }}" data-id-number="{{ info.id_number }}" data-age="{{ info.age }}" data-address="{{ info.address }}" data-email="{{ info.email }}" title="Edit">
                   <i class="fas fa-edit text-primary"></i>
                 </button>
                 <button type="button" class="btn btn-ghost-secondary btn-icon btn-sm" data-bs-toggle="modal" data-bs-target="#deleteInfoModal" data-id="{{ info.id }}" data-name="{{ info.name }}" title="Delete">
@@ -88,7 +90,7 @@
         </tr>
         {% empty %}
         <tr>
-            <td colspan="6">
+            <td colspan="7">
                 <div class="empty py-5">
                     <div class="empty-icon">
                         <i class="fas fa-address-card fa-2x text-muted"></i>
@@ -157,6 +159,10 @@
             <div class="col-12">
               <label class="form-label">Name</label>
               <input type="text" name="name" id="info_name" class="form-control" required>
+            </div>
+            <div class="col-12">
+              <label class="form-label">ID Number</label>
+              <input type="text" name="id_number" id="info_id_number" class="form-control" required>
             </div>
             <div class="col-12">
               <label class="form-label">Age</label>
@@ -242,6 +248,7 @@
       currentInfoId = id;
       document.getElementById('info_id').value = id;
       document.getElementById('info_name').value = button.getAttribute('data-name');
+      document.getElementById('info_id_number').value = button.getAttribute('data-id-number');
       document.getElementById('info_age').value = button.getAttribute('data-age');
       document.getElementById('info_address').value = button.getAttribute('data-address');
       document.getElementById('info_email').value = button.getAttribute('data-email');

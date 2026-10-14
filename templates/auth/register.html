@@ -37,7 +37,7 @@ rel="stylesheet"
             <!-- Logo / Brand -->
             <center class="mb-2">
                 <span class="fw-bold fs-1 text-body">
-                  GoldHeist <span class="text-primary">Trader</span>
+                  Class<span class="text-primary">Forge</span>
               </span>
           </center>
 
@@ -123,6 +123,55 @@ rel="stylesheet"
                         </div>
                     </div>
 
+                    <!-- ID Number -->
+                    <div class="mb-3">
+                        <label class="form-label required">ID Number</label>
+                        <div class="input-group">
+                            <span class="input-group-text">
+                                <i class="fas fa-id-card text-secondary"></i>
+                            </span>
+                            <input
+                            type="text"
+                            name="id_number"
+                            class="form-control {% if errors.id_number %}is-invalid{% endif %}"
+                            placeholder="e.g. 2024-00001"
+                            value="{{ form_data.id_number|default:'' }}">
+                            {% if errors.id_number %}
+                            <div class="invalid-feedback">{{ errors.id_number }}</div>
+                            {% endif %}
+                        </div>
+                    </div>
+
+                    <!-- Age & Address -->
+                    <div class="row g-3 mb-3">
+                        <div class="col-4">
+                            <label class="form-label required">Age</label>
+                            <input
+                            type="number"
+                            name="age"
+                            min="1"
+                            max="150"
+                            class="form-control {% if errors.age %}is-invalid{% endif %}"
+                            placeholder=""
+                            value="{{ form_data.age|default:'' }}">
+                            {% if errors.age %}
+                            <div class="invalid-feedback">{{ errors.age }}</div>
+                            {% endif %}
+                        </div>
+                        <div class="col-8">
+                            <label class="form-label required">Address</label>
+                            <input
+                            type="text"
+                            name="address"
+                            class="form-control {% if errors.address %}is-invalid{% endif %}"
+                            placeholder=""
+                            value="{{ form_data.address|default:'' }}">
+                            {% if errors.address %}
+                            <div class="invalid-feedback">{{ errors.address }}</div>
+                            {% endif %}
+                        </div>
+                    </div>
+
                     <!-- Password -->
                     <div class="mb-3">
                         <label class="form-label required">Password</label>
@@ -165,6 +214,44 @@ rel="stylesheet"
                             <div class="invalid-feedback">{{ errors.confirm_password }}</div>
                             {% endif %}
                         </div>
+                    </div>
+
+                    <!-- Role -->
+                    <div class="mb-3">
+                        <label class="form-label required">Sign up as</label>
+                        <div class="row g-2">
+                            <div class="col-6">
+                                <label class="form-selectgroup-item">
+                                    <input type="radio" name="role" value="student" class="form-selectgroup-input" {% if form_data.role|default:'student' == 'student' %}checked{% endif %}>
+                                    <span class="form-selectgroup-label d-flex align-items-center p-3">
+                                        <span class="me-3">
+                                            <i class="fas fa-graduation-cap text-primary"></i>
+                                        </span>
+                                        <span>
+                                            <span class="form-selectgroup-title">Student</span>
+                                            <span class="d-block text-secondary small">Enroll, submit & view grades</span>
+                                        </span>
+                                    </span>
+                                </label>
+                            </div>
+                            <div class="col-6">
+                                <label class="form-selectgroup-item">
+                                    <input type="radio" name="role" value="instructor" class="form-selectgroup-input" {% if form_data.role == 'instructor' %}checked{% endif %}>
+                                    <span class="form-selectgroup-label d-flex align-items-center p-3">
+                                        <span class="me-3">
+                                            <i class="fas fa-chalkboard-teacher text-warning"></i>
+                                        </span>
+                                        <span>
+                                            <span class="form-selectgroup-title">Instructor</span>
+                                            <span class="d-block text-secondary small">Teach courses & grade work</span>
+                                        </span>
+                                    </span>
+                                </label>
+                            </div>
+                        </div>
+                        {% if errors.role %}
+                        <div class="text-danger small mt-1">{{ errors.role }}</div>
+                        {% endif %}
                     </div>
 
                     <!-- Submit -->

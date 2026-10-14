@@ -1,0 +1,154 @@
+{% extends "theme/base.html" %}
+{% block content %}
+<div class="container-xl">
+  <div class="page-header d-print-none" aria-label="Page header">
+    <div class="container-xl">
+      <div class="row align-items-center">
+        <div class="col">
+          <div class="page-pretitle">ClassForge · {{ course.code }}</div>
+          <h2 class="page-title mb-0">{{ assignment.title }}</h2>
+          <div class="text-muted mt-1">
+            <span class="badge bg-azure-lt text-azure">{{ assignment.get_category_display }}</span>
+            Due {{ assignment.due_date|date:"M j, Y g:i A" }} · Max score {{ assignment.max_score }}
+            {% if assignment.due_date < now %}<span class="badge bg-danger-lt text-danger ms-1">Overdue</span>{% endif %}
+          </div>
+        </div>
+        <div class="col-auto ms-auto">
+          <div class="btn-list">
+            <a href="{% url 'courses:course_detail' course.id %}" class="btn btn-ghost-secondary">Back to Course</a>
+            {% if can_manage %}
+            <a href="{% url 'courses:assignment_update' assignment.id %}" class="btn btn-outline-primary">Edit</a>
+            {% elif is_enrolled %}
+            <a href="{% url 'courses:submission_create' assignment.id %}" class="btn btn-primary">
+              <i class="fas fa-upload me-2"></i> Submit
+            </a>
+            {% endif %}
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+  <br>
+
+  {% for message in messages %}
+  <div class="alert alert-info alert-dismissible" role="alert">
+    <div>{{ message }}</div>
+    <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+  </div>
+  {% endfor %}
+
+  {% if assignment.description %}
+  <div class="card mb-3">
+    <div class="card-body text-muted">{{ assignment.description|linebreaksbr }}</div>
+  </div>
+  {% endif %}
+
+  {% if can_manage %}
+  <div class="card">
+    <div class="card-header"><div class="card-title">Submissions by Student</div></div>
+    <div class="table-responsive">
+      <table class="table table-vcenter table-hover card-table">
+        <thead>
+          <tr>
+            <th>Student</th>
+            <th>Version</th>
+            <th>Submitted</th>
+            <th>Content</th>
+            <th>Grade</th>
+            <th class="w-1">Actions</th>
+          </tr>
+        </thead>
+        <tbody>
+        {% for student, versions in by_student.items %}
+          {% for sub in versions %}
+          <tr>
+            {% if forloop.first %}
+            <td rowspan="{{ versions|length }}" class="fw-semibold align-middle">
+              {{ student.get_full_name|default:student.username }}
+            </td>
+            {% endif %}
+            <td>
+              <span class="badge bg-primary-lt text-primary">v{{ sub.version }}</span>
+              {% if sub.submitted_at > assignment.due_date %}<span class="badge bg-danger-lt text-danger">Late</span>{% endif %}
+            </td>
+            <td class="text-muted">{{ sub.submitted_at|date:"M j, Y g:i A" }}</td>
+            <td class="text-muted" style="max-width: 280px; white-space: normal;">
+              {% if sub.file_attachment %}<a href="{{ sub.file_attachment.url }}">Attachment</a><br>{% endif %}
+              {{ sub.text_content|default:""|truncatechars:120 }}
+            </td>
+            <td>
+              {% if sub.grade %}
+              <span class="badge {% if sub.grade.is_published %}bg-success-lt text-success{% else %}bg-warning-lt text-warning{% endif %}">
+                {{ sub.grade.score }} / {{ assignment.max_score }}{% if not sub.grade.is_published %} · draft{% endif %}
+              </span>
+              {% else %}
+              <span class="text-muted">—</span>
+              {% endif %}
+            </td>
+            <td>
+              <a href="{% url 'courses:submission_grade' sub.id %}" class="btn btn-sm {% if sub.grade %}btn-outline-primary{% else %}btn-primary{% endif %}">
+                {% if sub.grade %}Edit Grade{% else %}Grade{% endif %}
+              </a>
+            </td>
+          </tr>
+          {% endfor %}
+        {% empty %}
+        <tr><td colspan="6"><div class="empty py-4"><p class="empty-title">No submissions yet</p></div></td></tr>
+        {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+  {% if by_student %}
+  <div class="card mt-3">
+    <div class="card-body">
+      <form method="POST" action="{% url 'courses:assignment_delete' assignment.id %}" onsubmit="return confirm('Delete this assignment and all its submissions and grades?');">
+        {% csrf_token %}
+        <button type="submit" class="btn btn-outline-danger">Delete Assignment</button>
+      </form>
+    </div>
+  </div>
+  {% endif %}
+  {% else %}
+  {% if latest_grade %}
+  <div class="alert alert-success" role="alert">
+    Latest published grade: <strong>{{ latest_grade.score }} / {{ assignment.max_score }}</strong>
+    {% if latest_grade.feedback %}<br><span class="text-muted">{{ latest_grade.feedback }}</span>{% endif %}
+  </div>
+  {% endif %}
+  <div class="card">
+    <div class="card-header"><div class="card-title">My Submissions (append-only — resubmitting creates a new version)</div></div>
+    <div class="table-responsive">
+      <table class="table table-vcenter table-hover card-table">
+        <thead>
+          <tr><th>Version</th><th>Submitted</th><th>Content</th><th>Grade</th></tr>
+        </thead>
+        <tbody>
+        {% for sub in versions %}
+        <tr>
+          <td><span class="badge bg-primary-lt text-primary">v{{ sub.version }}</span>
+            {% if sub.submitted_at > assignment.due_date %}<span class="badge bg-danger-lt text-danger">Late</span>{% endif %}
+          </td>
+          <td class="text-muted">{{ sub.submitted_at|date:"M j, Y g:i A" }}</td>
+          <td class="text-muted" style="max-width: 320px; white-space: normal;">
+            {% if sub.file_attachment %}<a href="{{ sub.file_attachment.url }}">Attachment</a><br>{% endif %}
+            {{ sub.text_content|default:""|truncatechars:140 }}
+          </td>
+          <td>
+            {% if sub.grade and sub.grade.is_published %}
+            <span class="badge bg-success-lt text-success">{{ sub.grade.score }} / {{ assignment.max_score }}</span>
+            {% else %}
+            <span class="text-muted">—</span>
+            {% endif %}
+          </td>
+        </tr>
+        {% empty %}
+        <tr><td colspan="4" class="text-muted">No submissions yet. {% if is_enrolled %}Click Submit to upload your first version.{% else %}Enroll in the course first.{% endif %}</td></tr>
+        {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+  {% endif %}
+</div>
+{% endblock %}

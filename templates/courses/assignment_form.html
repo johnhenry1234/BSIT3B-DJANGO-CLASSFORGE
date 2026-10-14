@@ -1,0 +1,57 @@
+{% extends "theme/base.html" %}
+{% block content %}
+<div class="container-xl">
+  <div class="page-header d-print-none" aria-label="Page header">
+    <div class="container-xl">
+      <div class="row align-items-center">
+        <div class="col">
+          <div class="page-pretitle">ClassForge · {{ course.code }}</div>
+          <h2 class="page-title mb-0">{% if mode == 'create' %}New Assignment{% else %}Edit Assignment{% endif %}</h2>
+        </div>
+      </div>
+    </div>
+  </div>
+  <br>
+  <div class="card">
+    <form method="POST">
+      <div class="card-body">
+        {% csrf_token %}
+        {% if form.non_field_errors %}
+        <div class="alert alert-danger">{{ form.non_field_errors }}</div>
+        {% endif %}
+        <div class="row g-3">
+          <div class="col-12">
+            <label class="form-label">Title</label>
+            {{ form.title }}
+            {% if form.title.errors %}<div class="text-danger small">{{ form.title.errors }}</div>{% endif %}
+          </div>
+          <div class="col-md-6">
+            <label class="form-label">Category</label>
+            {{ form.category }}
+            {% if form.category.errors %}<div class="text-danger small">{{ form.category.errors }}</div>{% endif %}
+          </div>
+          <div class="col-md-6">
+            <label class="form-label">Due Date</label>
+            {{ form.due_date }}
+            {% if form.due_date.errors %}<div class="text-danger small">{{ form.due_date.errors }}</div>{% endif %}
+          </div>
+          <div class="col-md-6">
+            <label class="form-label">Max Score</label>
+            {{ form.max_score }}
+            {% if form.max_score.errors %}<div class="text-danger small">{{ form.max_score.errors }}</div>{% endif %}
+          </div>
+          <div class="col-12">
+            <label class="form-label">Description</label>
+            {{ form.description }}
+            {% if form.description.errors %}<div class="text-danger small">{{ form.description.errors }}</div>{% endif %}
+          </div>
+        </div>
+      </div>
+      <div class="card-footer d-flex gap-2">
+        <a href="{% if mode == 'create' %}{% url 'courses:course_detail' course.id %}{% else %}{% url 'courses:assignment_detail' assignment.id %}{% endif %}" class="btn btn-ghost-secondary">Cancel</a>
+        <button type="submit" class="btn btn-primary ms-auto">{% if mode == 'create' %}Create Assignment{% else %}Save Changes{% endif %}</button>
+      </div>
+    </form>
+  </div>
+</div>
+{% endblock %}
