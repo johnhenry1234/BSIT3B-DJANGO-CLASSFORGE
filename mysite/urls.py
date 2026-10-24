@@ -25,6 +25,8 @@ urlpatterns = [
     path('users/', include('apps.users.urls')),
     path('info/', include('apps.info.urls')),
     path('courses/', include('apps.courses.urls')),
+    path('ai/', include('apps.ai.urls')),
+    path('portfolio/', include('apps.portfolio.urls')),
 ]
 
 if settings.DEBUG:

@@ -43,6 +43,8 @@ INSTALLED_APPS = [
     'apps.users',
     'apps.info',
     'apps.courses',
+    'apps.ai',
+    'apps.portfolio',
 ]
 
 MIDDLEWARE = [
@@ -67,6 +69,7 @@ TEMPLATES = [
                 'django.template.context_processors.request',
                 'django.contrib.auth.context_processors.auth',
                 'django.contrib.messages.context_processors.messages',
+                'apps.users.context_processors.role_context',
             ],
         },
     },

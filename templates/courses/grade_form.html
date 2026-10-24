@@ -11,8 +11,15 @@
             {{ submission.assignment.title }} (v{{ submission.version }})
           </h2>
           <div class="text-muted mt-1">
-            Submitted {{ submission.submitted_at|date:"M j, Y g:i A" }} · Max score {{ submission.assignment.max_score }}
+            Submitted {{ submission.submitted_at|date:"M j, Y g:i A" }} · Max score {{ submission.assignment.effective_max_score|default:submission.assignment.max_score }}
+            {% if submission.github_url %}· <a href="{{ submission.github_url }}" target="_blank">GitHub</a>{% endif %}
           </div>
+        </div>
+        <div class="col-auto ms-auto">
+          <form method="POST" action="{% url 'ai:run_evaluation' submission.id %}">
+            {% csrf_token %}
+            <button class="btn btn-outline-info">Run AI Auto-Grader</button>
+          </form>
         </div>
       </div>
     </div>
@@ -32,14 +39,75 @@
       {% if submission.file_attachment %}
       <p><a href="{{ submission.file_attachment.url }}" class="btn btn-sm btn-outline-primary"><i class="fas fa-download me-2"></i>Download Attachment</a></p>
       {% endif %}
+      {% if submission.github_url %}
+      <p><a href="{{ submission.github_url }}" target="_blank" class="btn btn-sm btn-outline-secondary"><i class="fab fa-github me-2"></i>Open Repository</a></p>
+      {% endif %}
       {% if submission.text_content %}
       <div class="text-muted" style="white-space: pre-wrap;">{{ submission.text_content }}</div>
       {% endif %}
-      {% if not submission.file_attachment and not submission.text_content %}
+      {% if not submission.file_attachment and not submission.text_content and not submission.github_url %}
       <p class="text-muted">No content.</p>
       {% endif %}
     </div>
   </div>
+
+  {% if ai_evaluations %}
+  <div class="card mb-3">
+    <div class="card-header"><div class="card-title">AI Auto-Grader Drafts (Assistant Mode)</div></div>
+    <div class="card-body p-0">
+      <div class="table-responsive">
+        <table class="table table-vcenter card-table mb-0">
+          <thead><tr><th>Created</th><th>Status</th><th>Suggested</th><th>Summary</th><th>Flags</th><th></th></tr></thead>
+          <tbody>
+          {% for ai in ai_evaluations %}
+          <tr>
+            <td class="text-muted">{{ ai.created_at|date:"M j, Y g:i A" }}</td>
+            <td><span class="badge bg-azure-lt">{{ ai.status }}</span>{% if ai.applied_at %}<span class="badge bg-success-lt text-success ms-1">Applied</span>{% endif %}</td>
+            <td>{% if ai.suggested_score %}{{ ai.suggested_score }}/{{ submission.assignment.max_score }}{% else %}—{% endif %}</td>
+            <td class="text-muted" style="max-width:320px; white-space:normal;">{{ ai.summary }}</td>
+            <td>{{ ai.flags.count }}</td>
+            <td class="text-end">
+              <details class="mb-0">
+                <summary class="btn btn-sm btn-outline-secondary">Review Draft</summary>
+                <div class="text-start mt-2 p-2">
+                  <div class="text-muted" style="white-space:pre-wrap;">{{ ai.suggested_feedback }}</div>
+                  {% if ai.flags.all %}
+                  <div class="mt-2">
+                    <strong>Flags</strong>
+                    <ul class="mb-0">
+                    {% for flag in ai.flags.all %}
+                      <li>[{{ flag.severity }}/{{ flag.kind }}] {{ flag.message }}</li>
+                    {% endfor %}
+                    </ul>
+                  </div>
+                  {% endif %}
+                  {% if ai.suggested_criteria %}
+                  <div class="mt-2">
+                    <strong>Suggested Criterion Scores</strong>
+                    <ul class="mb-0">
+                    {% for sc in ai.suggested_criteria %}
+                      <li>{{ sc.name }}: {{ sc.points }}/{{ sc.max_points }} — {{ sc.comment }}</li>
+                    {% endfor %}
+                    </ul>
+                  </div>
+                  {% endif %}
+                  {% if not ai.applied_at %}
+                  <form method="POST" action="{% url 'ai:apply_evaluation' ai.id %}" class="mt-2">
+                    {% csrf_token %}
+                    <button class="btn btn-sm btn-primary">Apply to Draft Grade (unpublished)</button>
+                  </form>
+                  {% endif %}
+                </div>
+              </details>
+            </td>
+          </tr>
+          {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+  {% endif %}
 
   <div class="card">
     <form method="POST">
@@ -48,6 +116,50 @@
         {% if form.non_field_errors %}
         <div class="alert alert-danger">{{ form.non_field_errors }}</div>
         {% endif %}
+
+        {% if rubric and rubric.criteria.exists %}
+        <div class="mb-3">
+          <div class="d-flex align-items-center mb-2">
+            <h3 class="card-title mb-0">Rubric Scoring</h3>
+            <span class="ms-auto text-muted">Total: <span id="rubric-total">0</span> / {{ rubric.total_points }}</span>
+          </div>
+          <div class="table-responsive">
+            <table class="table table-vcenter">
+              <thead><tr><th>Criterion</th><th>Description</th><th style="width:160px;">Points</th><th>Comment</th></tr></thead>
+              <tbody>
+              {% for row in form.criteria_rows %}
+                <tr>
+                  <td class="fw-semibold">
+                    {{ row.criterion.name }}
+                    <div class="text-muted small">Max {{ row.criterion.max_points }}</div>
+                  </td>
+                  <td class="text-muted">{{ row.criterion.description|default:"—" }}</td>
+                  <td>
+                    {{ row.points }}
+                    {% if row.points.errors %}<div class="text-danger small">{{ row.points.errors|striptags }}</div>{% endif %}
+                  </td>
+                  <td>{{ row.comment }}</td>
+                </tr>
+              {% empty %}
+                <tr>
+                  <td colspan="4" class="text-muted">No rubric criteria yet.</td>
+                </tr>
+              {% endfor %}
+              </tbody>
+            </table>
+          </div>
+        </div>
+        <div class="row g-3">
+          <div class="col-12"><label class="form-label">Overall Feedback</label>{{ form.feedback }}</div>
+          <div class="col-md-6">
+            <label class="form-label">Publish</label>
+            <div class="form-check form-switch mt-1">
+              {{ form.is_published }}
+              <label class="form-check-label" for="{{ form.is_published.id_for_label }}">Visible to student</label>
+            </div>
+          </div>
+        </div>
+        {% else %}
         {% if form.score.errors %}<div class="alert alert-danger">{{ form.score.errors }}</div>{% endif %}
         <div class="row g-3">
           <div class="col-md-4">
@@ -66,6 +178,7 @@
             {{ form.feedback }}
           </div>
         </div>
+        {% endif %}
       </div>
       <div class="card-footer d-flex gap-2 align-items-center">
         <a href="{% url 'courses:assignment_detail' submission.assignment_id %}" class="btn btn-ghost-secondary">Cancel</a>
@@ -78,11 +191,46 @@
   <div class="card mt-3">
     <div class="card-body d-flex align-items-center gap-2">
       <span class="text-muted">This grade is currently <strong>{% if existing.is_published %}published{% else %}a draft{% endif %}</strong>.</span>
-      <form method="POST" action="{% url 'courses:grade_publish_toggle' existing.id %}" class="d-inline ms-auto">
+      {% if existing.is_published %}
+      <form method="POST" action="{% url 'courses:grade_unpublish' existing.id %}" class="d-inline ms-auto">
         {% csrf_token %}
-        <button type="submit" class="btn btn-outline-secondary">
-          {% if existing.is_published %}Unpublish{% else %}Publish{% endif %}
-        </button>
+        <button type="submit" class="btn btn-outline-secondary">Unpublish</button>
+      </form>
+      {% else %}
+      <form method="POST" action="{% url 'courses:grade_publish' existing.id %}" class="d-inline ms-auto">
+        {% csrf_token %}
+        <button type="submit" class="btn btn-outline-success">Publish</button>
+      </form>
+      {% endif %}
+    </div>
+  </div>
+
+  <div class="card mt-3">
+    <div class="card-header d-flex align-items-center">
+      <div class="card-title">Feedback Annotations</div>
+    </div>
+    <div class="card-body">
+      {% for annotation in annotations %}
+      <div class="mb-2 pb-2 border-bottom">
+        <div class="d-flex align-items-center">
+          <strong>{{ annotation.author.username }}</strong>
+          <span class="text-muted ms-2">{{ annotation.created_at|date:"M j, Y g:i A" }}</span>
+          {% if annotation.anchor %}<span class="badge bg-secondary-lt ms-2">{{ annotation.anchor }}</span>{% endif %}
+        </div>
+        <div class="text-muted" style="white-space:pre-wrap;">{{ annotation.body }}</div>
+        {% if annotation.file_attachment %}<a href="{{ annotation.file_attachment.url }}">Attachment</a>{% endif %}
+      </div>
+      {% empty %}
+      <p class="text-muted mb-0">No annotations yet.</p>
+      {% endfor %}
+    </div>
+    <div class="card-footer">
+      <form method="POST" action="{% url 'courses:add_annotation' existing.id %}" enctype="multipart/form-data" class="row g-2 align-items-end">
+        {% csrf_token %}
+        <div class="col-md-3"><label class="form-label">Anchor</label>{{ annotation_form.anchor }}</div>
+        <div class="col-md-5"><label class="form-label">Comment</label>{{ annotation_form.body }}</div>
+        <div class="col-md-3"><label class="form-label">File</label>{{ annotation_form.file_attachment }}</div>
+        <div class="col-md-1"><button class="btn btn-primary">Add</button></div>
       </form>
     </div>
   </div>

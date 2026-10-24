@@ -1,0 +1,66 @@
+{% extends "theme/base.html" %}
+{% block content %}
+<div class="container-xl">
+  <div class="page-header d-print-none">
+    <div class="row align-items-center">
+      <div class="col">
+        <div class="page-pretitle">ClassForge · {{ course.code }}</div>
+        <h2 class="page-title mb-0">Manage Teaching Assistants</h2>
+      </div>
+      <div class="col-auto ms-auto">
+        <a href="{% url 'courses:course_detail' course.id %}" class="btn btn-ghost-secondary">Back to Course</a>
+      </div>
+    </div>
+  </div>
+  <br>
+  {% for message in messages %}
+  <div class="alert alert-info alert-dismissible" role="alert">
+    <div>{{ message }}</div>
+    <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+  </div>
+  {% endfor %}
+
+  <div class="row g-3">
+    <div class="col-lg-4">
+      <div class="card">
+        <div class="card-header"><div class="card-title">Assign TA</div></div>
+        <div class="card-body">
+          <form method="POST">
+            {% csrf_token %}
+            <label class="form-label">Username</label>
+            <input type="text" name="username" class="form-control" placeholder="Enter TA username" required>
+            <button class="btn btn-primary mt-3">Assign</button>
+          </form>
+        </div>
+      </div>
+    </div>
+    <div class="col-lg-8">
+      <div class="card">
+        <div class="card-header"><div class="card-title">Assigned TAs</div></div>
+        <div class="table-responsive">
+          <table class="table table-vcenter card-table">
+            <thead><tr><th>User</th><th>Added By</th><th>Added</th><th></th></tr></thead>
+            <tbody>
+            {% for assistant in assistants %}
+            <tr>
+              <td>{{ assistant.user.get_full_name|default:assistant.user.username }}</td>
+              <td class="text-muted">{{ assistant.added_by.username|default:"—" }}</td>
+              <td class="text-muted">{{ assistant.created_at|date:"M j, Y" }}</td>
+              <td class="text-end">
+                <form method="POST" action="{% url 'courses:course_remove_assistant' assistant.id %}">
+                  {% csrf_token %}
+                  <button class="btn btn-sm btn-outline-danger">Remove</button>
+                </form>
+              </td>
+            </tr>
+            {% empty %}
+            <tr><td colspan="4" class="text-muted">No TAs assigned.</td></tr>
+            {% endfor %}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}

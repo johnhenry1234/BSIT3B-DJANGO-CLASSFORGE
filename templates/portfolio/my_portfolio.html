@@ -1,0 +1,76 @@
+{% extends "theme/base.html" %}
+{% block content %}
+<div class="container-xl">
+  <div class="page-header d-print-none">
+    <div class="row align-items-center">
+      <div class="col">
+        <div class="page-pretitle">ClassForge · Portfolio</div>
+        <h2 class="page-title mb-0">My Digital Portfolio</h2>
+        <div class="text-muted mt-1">Showcase published work. Visibility: {{ portfolio.get_visibility_display }}.</div>
+      </div>
+      <div class="col-auto ms-auto">
+        <form method="POST" action="{% url 'portfolio:toggle_visibility' %}" class="d-inline">
+          {% csrf_token %}
+          <button class="btn btn-outline-primary">Toggle Visibility</button>
+        </form>
+      </div>
+    </div>
+  </div>
+  <br>
+  {% for message in messages %}
+  <div class="alert alert-info alert-dismissible" role="alert">
+    <div>{{ message }}</div>
+    <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+  </div>
+  {% endfor %}
+
+  <div class="card mb-3">
+    <div class="card-header"><div class="card-title">Add Published Work</div></div>
+    <div class="table-responsive">
+      <table class="table table-vcenter card-table">
+        <thead><tr><th>Course</th><th>Assignment</th><th>Score</th><th></th></tr></thead>
+        <tbody>
+        {% for grade in published %}
+        <tr>
+          <td><span class="badge bg-primary-lt">{{ grade.submission.assignment.course.code }}</span></td>
+          <td>{{ grade.submission.assignment.title }}</td>
+          <td>{{ grade.score }}/{{ grade.submission.assignment.max_score }}</td>
+          <td class="text-end">
+            <form method="POST" action="{% url 'portfolio:add_from_grade' grade.id %}">
+              {% csrf_token %}
+              <button class="btn btn-sm btn-primary">Add to Portfolio</button>
+            </form>
+          </td>
+        </tr>
+        {% empty %}
+        <tr><td colspan="4" class="text-muted">No published grades available yet.</td></tr>
+        {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <div class="row row-cards">
+    {% for item in items %}
+    <div class="col-md-6 col-lg-4">
+      <div class="card">
+        <div class="card-body">
+          <div class="d-flex align-items-center mb-2">
+            <h3 class="card-title mb-0">{{ item.title }}</h3>
+            {% if item.is_featured %}<span class="badge bg-warning-lt text-warning ms-2">Featured</span>{% endif %}
+          </div>
+          <div class="text-muted mb-2">{{ item.skills }}</div>
+          <p class="text-muted">{{ item.description|truncatechars:160 }}</p>
+          <form method="POST" action="{% url 'portfolio:feature_toggle' item.id %}">
+            {% csrf_token %}
+            <button class="btn btn-sm btn-outline-secondary">{% if item.is_featured %}Unfeature{% else %}Feature{% endif %}</button>
+          </form>
+        </div>
+      </div>
+    </div>
+    {% empty %}
+    <div class="col-12"><div class="card"><div class="card-body text-muted">No portfolio items yet.</div></div></div>
+    {% endfor %}
+  </div>
+</div>
+{% endblock %}

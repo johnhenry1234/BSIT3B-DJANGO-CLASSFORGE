@@ -44,14 +44,14 @@
           {% endif %}
           <div class="mb-3">
             <label class="form-label">Username</label>
-            <input type="text" class="form-control" name="username" autocomplete="off" {% if locked %}disabled{% endif %}>
+            <input type="text" class="form-control" name="username" autocomplete="off">
           </div>
           <div class="mb-2">
             <label class="form-label">
               Password
             </label>
             <div class="input-group input-group-flat">
-              <input type="password" class="form-control" name="password" autocomplete="off" {% if locked %}disabled{% endif %}>
+              <input type="password" class="form-control" name="password" autocomplete="off">
             </div>
           </div>
           <div class="form-footer d-flex justify-content-end">
@@ -75,25 +75,6 @@
 
 <script src="{% static 'js/tabler.js' %}" defer></script>
 <script src="{% static 'js/demo.js' %}" defer></script>
-{% if locked %}
-<script>
-  let remaining = {{ remaining }};
-  const messageBox = document.getElementById("error-message");
-
-  let interval = setInterval(function() {
-    remaining--;
-
-    if (remaining > 0) {
-      messageBox.innerHTML =
-      "Too many failed attempts. Try again in " + remaining + " seconds.";
-    } else {
-      clearInterval(interval);
-      window.location.href = "{% url 'login' %}";
-    }
-
-  }, 1000);
-</script>
-{% endif %}
 <script>
   document.addEventListener("DOMContentLoaded", function () {
     var themeConfig = {

@@ -1,0 +1,49 @@
+{% extends "theme/base.html" %}
+{% block content %}
+<div class="container-xl">
+  <div class="page-header d-print-none">
+    <div class="row align-items-center">
+      <div class="col">
+        <div class="page-pretitle">ClassForge · Activity</div>
+        <h2 class="page-title mb-0">Activity Audit Trail</h2>
+      </div>
+      <div class="col-auto ms-auto">
+        <form method="GET" class="d-flex gap-2">
+          <input type="text" name="action" class="form-control" placeholder="Filter by action..." value="{{ action_filter }}">
+          <button class="btn btn-primary">Filter</button>
+        </form>
+      </div>
+    </div>
+  </div>
+  <br>
+  <div class="card">
+    <div class="table-responsive">
+      <table class="table table-vcenter card-table">
+        <thead><tr><th>Time</th><th>Actor</th><th>Action</th><th>Entity</th><th>Description</th><th>IP</th></tr></thead>
+        <tbody>
+        {% for log in logs %}
+        <tr>
+          <td class="text-muted">{{ log.created_at|date:"M j, Y g:i A" }}</td>
+          <td>{{ log.actor.username|default:"system" }}</td>
+          <td><span class="badge bg-secondary-lt">{{ log.action }}</span></td>
+          <td class="text-muted">{{ log.entity_type }} {{ log.entity_id }}</td>
+          <td style="max-width:420px; white-space:normal;">{{ log.description }}</td>
+          <td class="text-muted">{{ log.ip_address|default:"—" }}</td>
+        </tr>
+        {% empty %}
+        <tr><td colspan="6" class="text-muted">No activity recorded.</td></tr>
+        {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    {% if logs.paginator.num_pages > 1 %}
+    <div class="card-footer d-flex align-items-center">
+      <ul class="pagination m-0 ms-auto">
+        {% if logs.has_previous %}<li class="page-item"><a class="page-link" href="?page={{ logs.previous_page_number }}{% if action_filter %}&action={{ action_filter }}{% endif %}">prev</a></li>{% endif %}
+        {% if logs.has_next %}<li class="page-item"><a class="page-link" href="?page={{ logs.next_page_number }}{% if action_filter %}&action={{ action_filter }}{% endif %}">next</a></li>{% endif %}
+      </ul>
+    </div>
+    {% endif %}
+  </div>
+</div>
+{% endblock %}

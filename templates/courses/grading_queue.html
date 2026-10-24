@@ -1,0 +1,72 @@
+{% extends "theme/base.html" %}
+{% block content %}
+<div class="container-xl">
+  <div class="page-header d-print-none">
+    <div class="row align-items-center">
+      <div class="col">
+        <div class="page-pretitle">ClassForge · Grading</div>
+        <h2 class="page-title mb-0">Grading Queue</h2>
+        <div class="text-muted mt-1">Latest submission per student with no grade yet. Use batch publish when ready.</div>
+      </div>
+      <div class="col-auto ms-auto">
+        <a href="{% url 'courses:course_list' %}" class="btn btn-ghost-secondary">Back to Courses</a>
+      </div>
+    </div>
+  </div>
+  <br>
+  {% for message in messages %}
+  <div class="alert alert-info alert-dismissible" role="alert">
+    <div>{{ message }}</div>
+    <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+  </div>
+  {% endfor %}
+
+  <form method="POST" action="{% url 'courses:grade_publish_batch' %}">
+    {% csrf_token %}
+    <div class="card">
+      <div class="card-header d-flex align-items-center">
+        <div class="card-title">Ungraded Latest Submissions ({{ queue|length }})</div>
+        <button class="btn btn-primary btn-sm ms-auto">Publish Selected Drafts</button>
+      </div>
+      <div class="table-responsive">
+        <table class="table table-vcenter card-table">
+          <thead>
+            <tr>
+              <th class="w-1"></th>
+              <th>Course</th>
+              <th>Assignment</th>
+              <th>Student</th>
+              <th>Version</th>
+              <th>Submitted</th>
+              <th>AI Draft</th>
+              <th class="w-1">Action</th>
+            </tr>
+          </thead>
+          <tbody>
+          {% for item in queue %}
+          <tr>
+            <td><input class="form-check-input" type="checkbox" name="grade_ids" value="{% if item.submission.grade %}{{ item.submission.grade.id }}{% endif %}" disabled></td>
+            <td><span class="badge bg-primary-lt">{{ item.course.code }}</span></td>
+            <td class="fw-semibold">{{ item.submission.assignment.title }}</td>
+            <td>{{ item.submission.student.get_full_name|default:item.submission.student.username }}</td>
+            <td>v{{ item.submission.version }} {% if item.is_late %}<span class="badge bg-danger-lt text-danger">Late</span>{% endif %}</td>
+            <td class="text-muted">{{ item.submission.submitted_at|date:"M j, Y g:i A" }}</td>
+            <td>
+              {% if item.ai and item.ai.is_completed %}
+                <span class="badge bg-info-lt text-info">Suggested {{ item.ai.suggested_score }}/{{ item.submission.assignment.max_score }} · {{ item.ai.flags.count }} flags</span>
+              {% else %}
+                <span class="text-muted">—</span>
+              {% endif %}
+            </td>
+            <td><a href="{% url 'courses:submission_grade' item.submission.id %}" class="btn btn-sm btn-primary">Grade</a></td>
+          </tr>
+          {% empty %}
+          <tr><td colspan="8"><div class="empty py-4"><p class="empty-title">No ungraded submissions</p></div></td></tr>
+          {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </form>
+</div>
+{% endblock %}

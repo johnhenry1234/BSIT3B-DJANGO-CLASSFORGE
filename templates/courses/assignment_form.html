@@ -45,6 +45,27 @@
             {{ form.description }}
             {% if form.description.errors %}<div class="text-danger small">{{ form.description.errors }}</div>{% endif %}
           </div>
+          <div class="col-12">
+            <div class="card">
+              <div class="card-header"><div class="card-title">Submission Settings</div></div>
+              <div class="card-body row g-3">
+                <div class="col-md-4"><div class="form-check">{{ form.accepts_zip }} <label class="form-check-label">Accept .zip</label></div></div>
+                <div class="col-md-4"><div class="form-check">{{ form.accepts_pdf }} <label class="form-check-label">Accept .pdf</label></div></div>
+                <div class="col-md-4"><div class="form-check">{{ form.accepts_github }} <label class="form-check-label">Accept GitHub URL</label></div></div>
+              </div>
+            </div>
+          </div>
+          <div class="col-12">
+            <label class="form-label">AI Guidelines (for Auto-Grader / Inspector)</label>
+            {{ form.guidelines }}
+            {% if form.guidelines.errors %}<div class="text-danger small">{{ form.guidelines.errors }}</div>{% endif %}
+          </div>
+          <div class="col-12">
+            <label class="form-label">Mandatory Files (one per line)</label>
+            {{ form.required_files }}
+            {% if form.required_files.errors %}<div class="text-danger small">{{ form.required_files.errors }}</div>{% endif %}
+          </div>
+          <div class="col-md-6"><div class="form-check mt-2">{{ form.ai_auto_run }} <label class="form-check-label">Queue AI draft on submission when guidelines exist</label></div></div>
         </div>
       </div>
       <div class="card-footer d-flex gap-2">

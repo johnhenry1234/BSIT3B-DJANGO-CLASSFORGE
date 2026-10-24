@@ -53,7 +53,7 @@
         {% endif %}
 
         <li class="nav-item">
-          <a class="nav-link {% if request.resolver_match.app_name == 'courses' and request.resolver_match.url_name != 'my_grades' %}active{% endif %}" href="{% url 'courses:course_list' %}">
+          <a class="nav-link {% if request.resolver_match.app_name == 'courses' and request.resolver_match.url_name != 'my_grades' and request.resolver_match.url_name != 'grading_queue' and request.resolver_match.url_name != 'audit_log' %}active{% endif %}" href="{% url 'courses:course_list' %}">
             <span class="nav-link-icon d-md-none d-lg-inline-block">
               <i class="nav-icon fas fa-book"></i>
             </span>
@@ -61,13 +61,43 @@
           </a>
         </li>
 
-        {% if not user.is_staff and not user.is_superuser %}
+        {% if can_grade %}
+        <li class="nav-item">
+          <a class="nav-link {% if request.resolver_match.url_name == 'grading_queue' %}active{% endif %}" href="{% url 'courses:grading_queue' %}">
+            <span class="nav-link-icon d-md-none d-lg-inline-block">
+              <i class="nav-icon fas fa-check-double"></i>
+            </span>
+            <span class="nav-link-title">Grading Queue</span>
+          </a>
+        </li>
+        {% endif %}
+
+        {% if user.is_superuser or can_grade %}
+        <li class="nav-item">
+          <a class="nav-link {% if request.resolver_match.url_name == 'audit_log' %}active{% endif %}" href="{% url 'courses:audit_log' %}">
+            <span class="nav-link-icon d-md-none d-lg-inline-block">
+              <i class="nav-icon fas fa-clipboard-list"></i>
+            </span>
+            <span class="nav-link-title">Audit Trail</span>
+          </a>
+        </li>
+        {% endif %}
+
+        {% if user_role == 'student' or not user.is_staff and not user.is_superuser and not can_grade %}
         <li class="nav-item">
           <a class="nav-link {% if request.resolver_match.url_name == 'my_grades' %}active{% endif %}" href="{% url 'courses:my_grades' %}">
             <span class="nav-link-icon d-md-none d-lg-inline-block">
               <i class="nav-icon fas fa-graduation-cap"></i>
             </span>
             <span class="nav-link-title">My Grades</span>
+          </a>
+        </li>
+        <li class="nav-item">
+          <a class="nav-link {% if request.resolver_match.app_name == 'portfolio' %}active{% endif %}" href="{% url 'portfolio:my_portfolio' %}">
+            <span class="nav-link-icon d-md-none d-lg-inline-block">
+              <i class="nav-icon fas fa-id-badge"></i>
+            </span>
+            <span class="nav-link-title">My Portfolio</span>
           </a>
         </li>
         {% endif %}

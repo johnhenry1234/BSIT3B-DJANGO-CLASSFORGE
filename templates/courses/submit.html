@@ -7,7 +7,7 @@
         <div class="col">
           <div class="page-pretitle">ClassForge · {{ course.code }}</div>
           <h2 class="page-title mb-0">Submit: {{ assignment.title }}</h2>
-          <div class="text-muted mt-1">Due {{ assignment.due_date|date:"M j, Y g:i A" }} · Each submission creates a new version.</div>
+          <div class="text-muted mt-1">Due {{ assignment.due_date|date:"M j, Y g:i A" }} · Each submission creates a new version. Accepted: {{ assignment.accepted_types|join:", "|default:"none" }}</div>
         </div>
       </div>
     </div>
@@ -21,16 +21,26 @@
         <div class="alert alert-danger">{{ form.non_field_errors }}</div>
         {% endif %}
         <div class="row g-3">
+          {% if assignment.accepts_zip or assignment.accepts_pdf %}
           <div class="col-12">
-            <label class="form-label">File Attachment</label>
+            <label class="form-label">File Attachment (.zip or .pdf)</label>
             {{ form.file_attachment }}
             {% if form.file_attachment.errors %}<div class="text-danger small">{{ form.file_attachment.errors }}</div>{% endif %}
+            {% if form.file_attachment.help_text %}<small class="form-hint">{{ form.file_attachment.help_text }}</small>{% endif %}
           </div>
+          {% endif %}
+          {% if assignment.accepts_github %}
           <div class="col-12">
-            <label class="form-label">Text Content</label>
+            <label class="form-label">GitHub Repository Link</label>
+            {{ form.github_url }}
+            {% if form.github_url.errors %}<div class="text-danger small">{{ form.github_url.errors }}</div>{% endif %}
+          </div>
+          {% endif %}
+          <div class="col-12">
+            <label class="form-label">Text Content / Notes</label>
             {{ form.text_content }}
             {% if form.text_content.errors %}<div class="text-danger small">{{ form.text_content.errors }}</div>{% endif %}
-            <small class="form-hint">Provide a file, text, or both.</small>
+            <small class="form-hint">Provide a file, GitHub link, text, or any combination.</small>
           </div>
         </div>
       </div>

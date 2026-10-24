@@ -1,5 +1,3 @@
-from datetime import timedelta
-
 from django.contrib import messages
 from django.contrib.auth import authenticate, get_user_model, login, logout
 from django.contrib.auth.decorators import login_required
@@ -8,55 +6,20 @@ from django.core.exceptions import ValidationError
 from django.core.validators import validate_email
 from django.db import transaction
 from django.shortcuts import redirect, render
-from django.utils import timezone
 from django.views.decorators.http import require_http_methods
 
 from apps.info.models import Info
 
+from .audit import log_activity
+
 User = get_user_model()
 
-MAX_FAILED_ATTEMPTS = 5
-LOCK_DURATION = timedelta(minutes=1)
 INVALID_LOGIN_MESSAGE = 'Invalid username or password.'
-LOCKED_MESSAGE = 'Too many failed attempts. Locked for 1 minute.'
 ROLE_STUDENT = 'student'
 ROLE_INSTRUCTOR = 'instructor'
 ROLE_CHOICES = (ROLE_STUDENT, ROLE_INSTRUCTOR)
 MIN_AGE = 1
 MAX_AGE = 150
-
-
-def _reset_lock_state(request):
-    request.session['failed_attempts'] = 0
-    request.session['lock_time'] = None
-
-
-def _get_lock_state(request):
-    failed_attempts = request.session.get('failed_attempts', 0)
-    lock_time = request.session.get('lock_time')
-
-    if not lock_time:
-        return failed_attempts, None
-
-    try:
-        unlock_time = timezone.datetime.fromisoformat(lock_time)
-    except (TypeError, ValueError):
-        _reset_lock_state(request)
-        return 0, None
-
-    if timezone.now() < unlock_time:
-        remaining = int((unlock_time - timezone.now()).total_seconds())
-        return failed_attempts, remaining
-
-    _reset_lock_state(request)
-    return 0, None
-
-
-def _set_lock_state(request):
-    lock_until = timezone.now() + LOCK_DURATION
-    request.session['failed_attempts'] = MAX_FAILED_ATTEMPTS
-    request.session['lock_time'] = lock_until.isoformat()
-    return int(LOCK_DURATION.total_seconds())
 
 
 def _validate_registration_data(data):
@@ -138,11 +101,6 @@ def login_view(request):
     if request.user.is_authenticated:
         return redirect('dashboard')
 
-    failed_attempts, remaining = _get_lock_state(request)
-    if remaining is not None:
-        messages.error(request, f'Too many failed attempts. Try again in {remaining} seconds.')
-        return render(request, 'auth/login.html', {'locked': True, 'remaining': remaining})
-
     if request.method == 'GET':
         return render(request, 'auth/login.html')
 
@@ -151,23 +109,36 @@ def login_view(request):
     user = authenticate(request, username=username, password=password)
 
     if user is not None:
-        _reset_lock_state(request)
         login(request, user)
+        log_activity(
+            request,
+            actor=user,
+            action='auth.login',
+            entity=user,
+            description=f'{user.username} signed in',
+        )
         return redirect('dashboard')
 
-    failed_attempts += 1
-    request.session['failed_attempts'] = failed_attempts
-    if failed_attempts >= MAX_FAILED_ATTEMPTS:
-        remaining = _set_lock_state(request)
-        messages.error(request, LOCKED_MESSAGE)
-        return render(request, 'auth/login.html', {'locked': True, 'remaining': remaining})
-
-    remaining_attempts = MAX_FAILED_ATTEMPTS - failed_attempts
-    messages.error(request, f'{INVALID_LOGIN_MESSAGE} {remaining_attempts} attempts remaining.')
+    log_activity(
+        request,
+        action='auth.login_failed',
+        entity_type='User',
+        entity_id='',
+        description=f'Failed sign-in for username "{username}"',
+    )
+    messages.error(request, INVALID_LOGIN_MESSAGE)
     return render(request, 'auth/login.html')
 
 
 def logout_view(request):
+    if request.user.is_authenticated:
+        log_activity(
+            request,
+            actor=request.user,
+            action='auth.logout',
+            entity=request.user,
+            description=f'{request.user.username} signed out',
+        )
     logout(request)
     return redirect('login')
 
@@ -266,4 +237,11 @@ def register_view(request):
             email=form_data['email'].strip(),
         )
     login(request, user)
+    log_activity(
+        request,
+        actor=user,
+        action='auth.registered',
+        entity=user,
+        description=f'New {role} account "{user.username}" registered',
+    )
     return redirect('dashboard')
