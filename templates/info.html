@@ -1,4 +1,5 @@
 {% extends "theme/base.html" %}
+{% load info_extras %}
 {% block content %}
 <div class="container-xl">
   <div class="page-header d-print-none" aria-label="Page header">
@@ -7,9 +8,9 @@
         <div class="col">
           <div class="page-pretitle">Overview</div>
           <div class="d-flex align-items-center gap-3 flex-wrap d-none d-md-flex">
-            <h2 class="page-title mb-0">Info Management</h2>
+            <h2 class="page-title mb-0">{% if is_student_view %}My Info{% else %}Students Info{% endif %}</h2>
           </div>
-          <h2 class="page-title mb-0 d-md-none">Info Management</h2>
+          <h2 class="page-title mb-0 d-md-none">{% if is_student_view %}My Info{% else %}Students Info{% endif %}</h2>
         </div>
       </div>
     </div>
@@ -20,7 +21,7 @@
     <form method="GET" class="w-100" style="max-width: 420px;">
       <div class="input-group">
         <span class="input-group-text"><i class="ti ti-search"></i></span>
-        <input type="text" name="q" value="{{ query }}" class="form-control" placeholder="Search by name, address, or email...">
+        <input type="text" name="q" value="{{ query }}" class="form-control" placeholder="Search by name, username, email, or ID...">
         {% if query %}
         <a href="{% url 'info:info_list' %}" class="btn btn-outline-secondary">Clear</a>
         {% endif %}
@@ -28,9 +29,11 @@
       </div>
     </form>
 
+    {% if is_student_view %}
     <button type="button" class="btn btn-primary mt-n4" data-bs-toggle="modal" data-bs-target="#infoModal" data-mode="create">
       <i class='fas fa-plus-circle me-2'></i> Add Info
     </button>
+    {% endif %}
   </div>
 
   <div class="toast-container position-fixed top-0 end-0 p-3" id="infoToastContainer" aria-live="polite" aria-atomic="true">
@@ -44,12 +47,133 @@
     {% endfor %}
   </div>
 
+  {% if not is_student_view %}
+  <div class="card">
+    <div class="card-header d-flex flex-column flex-md-row align-items-start align-items-md-center justify-content-between gap-2">
+      <div class="card-title">
+        Enrolled Students
+        {% if query %}
+        <span class="text-muted fw-normal">— search results for "{{ query }}"</span>
+        {% endif %}
+      </div>
+      <form method="GET" class="d-flex gap-2">
+        <input type="hidden" name="q" value="{{ query }}">
+        <select name="course" class="form-select" onchange="this.form.submit()">
+          <option value="">All Courses</option>
+          {% for c in courses %}
+          <option value="{{ c.id }}" {% if course_filter == c.id|stringformat:"s" %}selected{% endif %}>{{ c.code }} - {{ c.name }}</option>
+          {% endfor %}
+        </select>
+      </form>
+    </div>
+    <div class="table-responsive">
+      <table class="table table-vcenter table-hover card-table">
+        <thead>
+          <tr>
+            <th>#</th>
+            <th>Student</th>
+            <th>Username/Student ID</th>
+            <th>Email</th>
+            <th>Student Info</th>
+            <th>Course Enrolled</th>
+            <th>Enrollment Status</th>
+            <th>Actions</th>
+          </tr>
+        </thead>
+        <tbody>
+        {% for enrollment in enrollments %}
+        <tr>
+          <td class="text-muted">{{ forloop.counter0|add:enrollments.start_index }}</td>
+          <td>
+            <div class="d-flex align-items-center">
+              <span class="avatar avatar-sm me-2 bg-primary-lt">{{ enrollment.student.first_name|first|default:enrollment.student.username|first|upper }}</span>
+              <div>
+                <div class="fw-semibold">{% if enrollment.student.first_name or enrollment.student.last_name %}{{ enrollment.student.first_name }} {{ enrollment.student.last_name }}{% else %}{{ enrollment.student.username }}{% endif %}</div>
+              </div>
+            </div>
+          </td>
+          <td>
+            <div>{{ enrollment.student.username }}</div>
+            {% for info in enrollment.student.infos.all %}
+            <div class="text-muted small">{{ info.id_number }}</div>
+            {% endfor %}
+          </td>
+          <td class="text-muted">{{ enrollment.student.email|default:"—" }}</td>
+          <td>
+            {% for info in enrollment.student.infos.all %}
+            <div class="mb-1 small">
+              <div>Age: {{ info.age }}</div>
+              <div>Address: {{ info.address }}</div>
+              {% if info.email %}<div>Email: {{ info.email }}</div>{% endif %}
+            </div>
+            {% empty %}
+            <span class="text-muted">No info recorded</span>
+            {% endfor %}
+          </td>
+          <td>
+            <span class="badge bg-green-lt">{{ enrollment.course.code }}</span>
+            <div class="text-muted small">{{ enrollment.course.name }}</div>
+          </td>
+          <td><span class="badge bg-success-lt">Enrolled</span></td>
+          <td>
+            <a href="{% url 'users:user_detail' enrollment.student.pk %}" class="btn btn-sm btn-ghost-primary">View Details</a>
+          </td>
+        </tr>
+        {% empty %}
+        <tr>
+          <td colspan="8">
+            <div class="empty py-5">
+              <div class="empty-icon">
+                <i class="fas fa-user-graduate fa-2x text-muted"></i>
+              </div>
+              <p class="empty-title">No students found</p>
+              <p class="empty-subtitle">No students are enrolled in your course(s) yet.</p>
+            </div>
+          </td>
+        </tr>
+        {% endfor %}
+        </tbody>
+      </table>
+    </div>
+
+    {% if enrollments.paginator.num_pages > 1 %}
+    <div class="card-footer d-flex align-items-center">
+      <p class="m-0 text-muted">
+        Showing <span class="fw-medium">{{ enrollments.start_index }}</span>
+        to <span class="fw-medium">{{ enrollments.end_index }}</span>
+        of <span class="fw-medium">{{ enrollments.paginator.count }}</span> enrollment(s)
+      </p>
+      <ul class="pagination m-0 ms-auto">
+        {% if enrollments.has_previous %}
+        <li class="page-item">
+          <a class="page-link" href="?page={{ enrollments.previous_page_number }}{% if query %}&q={{ query|urlencode }}{% endif %}{% if course_filter %}&course={{ course_filter }}{% endif %}">
+            <i class="ti ti-chevron-left"></i> prev
+          </a>
+        </li>
+        {% endif %}
+        {% for num in enrollments.paginator.page_range %}
+        <li class="page-item {% if enrollments.number == num %}active{% endif %}">
+          <a class="page-link" href="?page={{ num }}{% if query %}&q={{ query|urlencode }}{% endif %}{% if course_filter %}&course={{ course_filter }}{% endif %}">{{ num }}</a>
+        </li>
+        {% endfor %}
+        {% if enrollments.has_next %}
+        <li class="page-item">
+          <a class="page-link" href="?page={{ enrollments.next_page_number }}{% if query %}&q={{ query|urlencode }}{% endif %}{% if course_filter %}&course={{ course_filter }}{% endif %}">
+            next <i class="ti ti-chevron-right"></i>
+          </a>
+        </li>
+        {% endif %}
+      </ul>
+    </div>
+    {% endif %}
+  </div>
+  {% else %}
   <div id="infoAlert" class="alert alert-danger d-none" role="alert"></div>
 
   <div class="card">
     <div class="card-header">
       <div class="card-title">
-        All Records
+        My Info
         {% if query %}
         <span class="text-muted fw-normal">— search results for "{{ query }}"</span>
         {% endif %}
@@ -96,7 +220,7 @@
                         <i class="fas fa-address-card fa-2x text-muted"></i>
                     </div>
                     <p class="empty-title">No records found</p>
-                    <p class="empty-subtitle">Try adjusting your search or add a new record.</p>
+                    <p class="empty-subtitle">Add your personal information.</p>
                     <div class="empty-action">
                         <button type="button" class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#infoModal" data-mode="create">
                             <i class="fas fa-plus-circle me-2"></i> Add Info
@@ -120,19 +244,19 @@
       <ul class="pagination m-0 ms-auto">
         {% if infos.has_previous %}
         <li class="page-item">
-          <a class="page-link" href="?page={{ infos.previous_page_number }}{% if query %}&q={{ query }}{% endif %}">
+          <a class="page-link" href="?page={{ infos.previous_page_number }}{% if query %}&q={{ query|urlencode }}{% endif %}">
             <i class="ti ti-chevron-left"></i> prev
           </a>
         </li>
         {% endif %}
         {% for num in infos.paginator.page_range %}
         <li class="page-item {% if infos.number == num %}active{% endif %}">
-          <a class="page-link" href="?page={{ num }}{% if query %}&q={{ query }}{% endif %}">{{ num }}</a>
+          <a class="page-link" href="?page={{ num }}{% if query %}&q={{ query|urlencode }}{% endif %}">{{ num }}</a>
         </li>
         {% endfor %}
         {% if infos.has_next %}
         <li class="page-item">
-          <a class="page-link" href="?page={{ infos.next_page_number }}{% if query %}&q={{ query }}{% endif %}">
+          <a class="page-link" href="?page={{ infos.next_page_number }}{% if query %}&q={{ query|urlencode }}{% endif %}">
             next <i class="ti ti-chevron-right"></i>
           </a>
         </li>
@@ -141,8 +265,10 @@
     </div>
     {% endif %}
   </div>
+  {% endif %}
 </div>
 
+{% if is_student_view %}
 <div class="modal modal-blur fade" id="infoModal" tabindex="-1">
   <div class="modal-dialog modal-md modal-dialog-centered">
     <div class="modal-content">
@@ -204,9 +330,11 @@
     </div>
   </div>
 </div>
+{% endif %}
 {% endblock %}
 
 {% block extra_js %}
+{% if is_student_view %}
 <script>
 (function() {
   const modalEl = document.getElementById('infoModal');
@@ -304,4 +432,5 @@
   });
 })();
 </script>
+{% endif %}
 {% endblock %}

@@ -10,7 +10,12 @@ from django.db import IntegrityError
 from django.db.models import Q
 
 from apps.scoping import scoped_info, scoped_infos
+from apps.courses.models import Course, Enrollment
+from django.contrib.auth import get_user_model
+
 from .models import Info
+
+User = get_user_model()
 
 MIN_AGE = 1
 MAX_AGE = 150
@@ -26,26 +31,87 @@ def _parse_age(raw_age):
 
 @login_required(login_url='login')
 def info_list_page(request):
-    """Render the searchable, paginated info list for the signed-in user."""
+    """Show students enrolled in courses taught by the signed-in instructor."""
+    user = request.user
     query = request.GET.get('q', '').strip()
 
+    # For instructors/staff/superusers, show enrolled students from their courses
+    if user.is_superuser or user.is_staff or getattr(user, 'classforge_profile', None):
+        from apps.users.roles import is_instructor, can_grade
+
+        if user.is_superuser or is_instructor(user) or can_grade(user):
+            courses = Course.objects.filter(
+                Q(instructor=user) | Q(assistants__user=user)
+            ).distinct().order_by('code')
+            course_filter = request.GET.get('course', '').strip()
+            if course_filter:
+                try:
+                    course_filter_id = int(course_filter)
+                    if course_filter_id in list(courses.values_list('id', flat=True)):
+                        courses_qs = courses.filter(id=course_filter_id)
+                    else:
+                        courses_qs = courses
+                except ValueError:
+                    courses_qs = courses
+            else:
+                courses_qs = courses
+
+            enrollments = (
+                Enrollment.objects.filter(course__in=courses_qs)
+                .select_related('course', 'student', 'student__classforge_profile')
+                .prefetch_related('student__infos')
+                .order_by('course__code', 'student__first_name', 'student__last_name', 'student__username')
+            )
+
+            if query:
+                enrollments = enrollments.filter(
+                    Q(student__username__icontains=query)
+                    | Q(student__first_name__icontains=query)
+                    | Q(student__last_name__icontains=query)
+                    | Q(student__email__icontains=query)
+                    | Q(student__infos__name__icontains=query)
+                    | Q(student__infos__id_number__icontains=query)
+                ).distinct()
+
+            paginator = Paginator(enrollments, 30)
+            page_number = request.GET.get('page', 1)
+            enrollments_page = paginator.get_page(page_number)
+
+            return render(
+                request,
+                'info.html',
+                {
+                    'enrollments': enrollments_page,
+                    'courses': courses,
+                    'course_filter': course_filter,
+                    'query': query,
+                    'is_student_view': False,
+                },
+            )
+
+    # Fallback for students - show their own info (legacy behavior)
     infos_list = scoped_infos(request.user).order_by('name')
 
     if query:
         infos_list = infos_list.filter(
-            Q(name__icontains=query) |
-            Q(address__icontains=query) |
-            Q(email__icontains=query)
+            Q(name__icontains=query)
+            | Q(address__icontains=query)
+            | Q(email__icontains=query)
         )
 
     paginator = Paginator(infos_list, 10)
     page_number = request.GET.get('page', 1)
     infos = paginator.get_page(page_number)
 
-    return render(request, 'info.html', {
-        'infos': infos,
-        'query': query,
-    })
+    return render(
+        request,
+        'info.html',
+        {
+            'infos': infos,
+            'query': query,
+            'is_student_view': True,
+        },
+    )
 
 
 @login_required(login_url='login')

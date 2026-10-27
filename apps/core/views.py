@@ -145,7 +145,16 @@ def logout_view(request):
 
 @login_required(login_url='login')
 def home(request):
-    from apps.courses.models import Assignment, Course, Enrollment, Grade, Submission
+    from apps.courses.models import (
+        Assignment,
+        AssignmentSeen,
+        Course,
+        Enrollment,
+        Grade,
+        Submission,
+    )
+    from apps.users.roles import is_instructor as user_is_instructor
+    from django.db.models import Max, Q
 
     user = request.user
     stats = {}
@@ -157,17 +166,68 @@ def home(request):
             'pending_grades': Submission.objects.filter(grade__isnull=True).count(),
         }
         role = 'admin'
-    elif user.is_staff:
-        own_courses = Course.objects.filter(instructor=user)
+    elif user.is_staff or user_is_instructor(user):
+        own_courses = Course.objects.filter(
+            Q(instructor=user) | Q(assistants__user=user)
+        ).distinct()
+        latest_ids = (
+            Submission.objects.filter(assignment__course__in=own_courses)
+            .values('assignment_id', 'student_id')
+            .annotate(latest_id=Max('id'))
+            .values_list('latest_id', flat=True)
+        )
+        pending_grades = (
+            Submission.objects.filter(id__in=latest_ids)
+            .exclude(grade__isnull=False)
+            .count()
+        )
         stats = {
             'courses': own_courses.count(),
             'assignments': Assignment.objects.filter(course__in=own_courses).count(),
-            'students': Enrollment.objects.filter(course__in=own_courses).count(),
-            'pending_grades': Submission.objects.filter(
-                assignment__course__in=own_courses, grade__isnull=True
-            ).count(),
+            'students': Enrollment.objects.filter(course__in=own_courses)
+            .values('student')
+            .distinct()
+            .count(),
+            'pending_grades': pending_grades,
         }
         role = 'instructor'
+        # Recent submissions for instructor dashboard
+        recent_submissions = (
+            Submission.objects.filter(id__in=latest_ids)
+            .select_related('assignment', 'student', 'assignment__course')
+            .order_by('-submitted_at')[:10]
+        )
+        # Class-level stats
+        total_students = (
+            Enrollment.objects.filter(course__in=own_courses)
+            .values('student')
+            .distinct()
+            .count()
+        )
+        submitted_count = (
+            Submission.objects.filter(id__in=latest_ids).values('student').distinct().count()
+        )
+        stats['submission_rate'] = round((submitted_count / total_students * 100) if total_students else 0, 1)
+        stats['ungraded_count'] = pending_grades
+        now = __import__('django.utils.timezone').utils.timezone.now()
+        stats['upcoming_deadlines'] = Assignment.objects.filter(
+            course__in=own_courses, due_date__gte=now
+        ).count()
+        return render(
+            request,
+            'home.html',
+            {
+                'stats': stats,
+                'role': role,
+                'recent_submissions': recent_submissions,
+                'own_courses': own_courses,
+                'upcoming_assignments': Assignment.objects.filter(
+                    course__in=own_courses, due_date__gte=now
+                )
+                .select_related('course')
+                .order_by('due_date')[:5],
+            },
+        )
     else:
         enrolled = Enrollment.objects.filter(student=user).values_list(
             'course_id', flat=True
@@ -188,6 +248,49 @@ def home(request):
             ).count(),
         }
         role = 'student'
+        # Feed of instructor posts
+        assignments = (
+            Assignment.objects.filter(course_id__in=enrolled)
+            .select_related('course', 'course__instructor')
+            .order_by('-created_at')
+        )
+        seen_ids = set(
+            AssignmentSeen.objects.filter(student=user).values_list('assignment_id', flat=True)
+        )
+        posts = []
+        for a in assignments:
+            latest_sub = (
+                Submission.objects.filter(assignment=a, student=user)
+                .order_by('-version')
+                .first()
+            )
+            if latest_sub and hasattr(latest_sub, 'grade'):
+                status = 'Graded'
+            elif latest_sub:
+                status = 'Submitted'
+            else:
+                status = 'Not submitted'
+            posts.append(
+                {
+                    'assignment': a,
+                    'course': a.course,
+                    'instructor': a.course.instructor,
+                    'is_new': a.id not in seen_ids,
+                    'status': status,
+                    'latest_submission': latest_sub,
+                }
+            )
+        unseen_count = sum(1 for p in posts if p['is_new'])
+        return render(
+            request,
+            'home.html',
+            {
+                'stats': stats,
+                'role': role,
+                'posts': posts,
+                'unseen_count': unseen_count,
+            },
+        )
     return render(request, 'home.html', {'stats': stats, 'role': role})
 
 

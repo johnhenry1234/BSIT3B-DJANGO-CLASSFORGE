@@ -520,6 +520,55 @@ def my_grades(request):
 
 
 @login_required(login_url='login')
+def student_history(request):
+    if is_instructor(request.user) or is_teaching_assistant(request.user):
+        return redirect('courses:course_list')
+
+    from django.core.paginator import Paginator
+    from apps.core.models import ActivityLog
+
+    enrolled_courses = Course.objects.filter(enrollments__student=request.user).distinct()
+    course_ids = list(enrolled_courses.values_list('id', flat=True))
+    instructor_ids = list(enrolled_courses.values_list('instructor_id', flat=True))
+
+    logs = (
+        ActivityLog.objects.select_related('actor')
+        .filter(
+            Q(actor=request.user)
+            | (
+                Q(actor_id__in=instructor_ids)
+                & (
+                    Q(metadata__course_id__in=course_ids)
+                    | Q(entity_type='Course', entity_id__in=[str(c) for c in course_ids])
+                    | Q(entity_type__in=['Assignment', 'Submission', 'Grade'], entity_id__isnull=False)
+                )
+            )
+        )
+        .order_by('-created_at')
+    )
+    # Further constrain to only events related to the student's courses where possible
+    if course_ids:
+        logs = logs.filter(
+            Q(actor=request.user)
+            | Q(metadata__course_id__in=course_ids)
+            | Q(entity_type='Course', entity_id__in=[str(c) for c in course_ids])
+        ).order_by('-created_at')
+
+    paginator = Paginator(logs, 50)
+    page_number = request.GET.get('page')
+    page_obj = paginator.get_page(page_number)
+
+    return render(
+        request,
+        'courses/student_history.html',
+        {
+            'page_obj': page_obj,
+            'logs': page_obj.object_list,
+        },
+    )
+
+
+@login_required(login_url='login')
 def grading_queue(request):
     if not can_grade(request.user):
         raise PermissionDenied('Only instructors and TAs can access the grading queue.')
@@ -931,6 +980,63 @@ def add_annotation(request, pk):
     else:
         messages.error(request, 'Could not add annotation. Check the form.')
     return redirect('courses:submission_grade', pk=grade.submission_id)
+
+
+@login_required(login_url='login')
+@require_POST
+def mark_assignment_seen(request, pk):
+    from .models import Assignment, AssignmentSeen, Enrollment
+    from django.http import JsonResponse
+
+    assignment = get_object_or_404(Assignment, pk=pk)
+    if not Enrollment.objects.filter(course=assignment.course, student=request.user).exists():
+        return JsonResponse({'ok': False}, status=403)
+    AssignmentSeen.objects.get_or_create(student=request.user, assignment=assignment)
+    return JsonResponse({'ok': True})
+
+
+@login_required(login_url='login')
+@require_POST
+def dashboard_submit(request, pk):
+    from .models import Assignment, AssignmentSeen, Enrollment
+    from .forms import SubmissionForm
+
+    assignment = get_object_or_404(Assignment.objects.select_related('course'), pk=pk)
+    course = assignment.course
+    if can_grade_course(request.user, course) or is_instructor(request.user):
+        messages.error(request, 'Instructors and TAs cannot submit assignments.')
+        return redirect('dashboard')
+    if not course.enrollments.filter(student=request.user).exists():
+        messages.error(request, 'Enroll in the course before submitting.')
+        return redirect('courses:course_detail', pk=course.pk)
+
+    form = SubmissionForm(request.POST, request.FILES, assignment=assignment)
+    if form.is_valid():
+        try:
+            with transaction.atomic():
+                submission = form.save(commit=False)
+                submission.assignment = assignment
+                submission.student = request.user
+                submission.save()
+        except IntegrityError:
+            messages.error(request, 'Could not save submission. Please try again.')
+        else:
+            messages.success(
+                request,
+                f'Submission v{submission.version} uploaded successfully.'
+                + (' Note: it was submitted after the due date.' if submission.is_late else ''),
+            )
+            log_activity(
+                request,
+                action='submission.created',
+                entity=submission,
+                description=f'Uploaded v{submission.version} for "{assignment.title}"',
+                metadata={'course_id': course.id},
+            )
+            AssignmentSeen.objects.get_or_create(student=request.user, assignment=assignment)
+    else:
+        messages.error(request, 'Could not submit. Please check the file/link/text.')
+    return redirect('dashboard')
 
 
 @login_required(login_url='login')

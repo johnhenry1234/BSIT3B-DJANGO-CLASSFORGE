@@ -8,6 +8,7 @@ urlpatterns = [
     path('', views.course_list, name='course_list'),
     path('create/', views.course_create, name='course_create'),
     path('my-grades/', views.my_grades, name='my_grades'),
+    path('history/', views.student_history, name='student_history'),
     path('grading-queue/', views.grading_queue, name='grading_queue'),
     path('audit/', views.audit_log, name='audit_log'),
     path('<int:pk>/', views.course_detail, name='course_detail'),
@@ -76,4 +77,6 @@ urlpatterns = [
         views.add_annotation,
         name='add_annotation',
     ),
+    path('assignments/<int:pk>/mark-seen/', views.mark_assignment_seen, name='mark_assignment_seen'),
+    path('dashboard/submit/<int:pk>/', views.dashboard_submit, name='dashboard_submit'),
 ]

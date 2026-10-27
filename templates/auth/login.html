@@ -5,71 +5,145 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
   <meta http-equiv="X-UA-Compatible" content="ie=edge" />
-  <title>
-    Sign in - ClassForge
-  </title>
-  <link href="{% static 'libs/jsvectormap/dist/jsvectormap.css' %}" rel="stylesheet" />
+  <title>Sign in - ClassForge</title>
   <link href="{% static 'css/tabler.css' %}" rel="stylesheet" />
-  <link href="{% static 'css/tabler-flags.css' %}" rel="stylesheet" />
-  <link href="{% static 'css/tabler-socials.css' %}" rel="stylesheet" />
-  <link href="{% static 'css/tabler-payments.css' %}" rel="stylesheet" />
-  <link href="{% static 'css/tabler-vendors.css' %}" rel="stylesheet" />
-  <link href="{% static 'css/tabler-marketing.css' %}" rel="stylesheet" />
   <link href="{% static 'css/tabler-themes.css' %}" rel="stylesheet" />
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+  <style>
+    body {
+      background: radial-gradient(circle at top, #f8fafc, #eef2ff);
+      min-height: 100vh;
+    }
+    .login-card {
+      border: none;
+      border-radius: 1rem;
+      box-shadow: 0 25px 60px -30px rgba(59, 130, 246, 0.45);
+      backdrop-filter: blur(4px);
+    }
+    .login-logo {
+      width: 64px;
+      height: 64px;
+      border-radius: 999px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      margin: -2rem auto 1rem;
+      background: linear-gradient(135deg, #2563eb 0%, #22d3ee 100%);
+      color: #fff;
+      box-shadow: 0 20px 40px -20px rgba(37, 99, 235, 0.9);
+    }
+    .form-control {
+      border-radius: 0.75rem;
+      padding: 0.65rem 0.9rem;
+    }
+    .input-group-flat .form-control {
+      border-radius: 0.75rem 0 0 0.75rem;
+    }
+    .input-group-flat .input-group-text {
+      border-radius: 0 0.75rem 0.75rem 0;
+      background: transparent;
+    }
+    .btn-primary {
+      border-radius: 999px;
+      padding: 0.65rem 1.25rem;
+      box-shadow: 0 15px 40px -20px rgba(37, 99, 235, 1);
+    }
+    .btn-outline-primary {
+      border-radius: 999px;
+    }
+  </style>
 </head>
 
 <body>
   <script src="{% static 'js/tabler-theme.js' %}"></script>
   <div class="page page-center">
     <div class="container container-tight py-4">
-
-     <div class="card card-md">
-      <div class="card-body">
-
-        <center class="mt-n4">
-        <i class='far fa-calendar' style='font-size:40px'></i>
-        </center>
-        <h2 class="h3 text-center mb-4">Sign in to start your session</h2>
-
-        <form method="post">
-          {% csrf_token %}
-
-          {% if messages %}
-          {% for message in messages %}
-          <div id="error-message" class="alert alert-danger">
-            {{ message }}
+      <div class="text-center mb-4">
+        <a href="." class="navbar-brand navbar-brand-autodark">
+          <span class="fw-semibold fs-2">ClassForge</span>
+        </a>
+      </div>
+      <div class="card card-md login-card">
+        <div class="card-body">
+          <div class="login-logo">
+            <i class="far fa-calendar-alt fs-2"></i>
           </div>
-          {% endfor %}
-          {% endif %}
-          <div class="mb-3">
-            <label class="form-label">Username</label>
-            <input type="text" class="form-control" name="username" autocomplete="off">
-          </div>
-          <div class="mb-2">
-            <label class="form-label">
-              Password
-            </label>
-            <div class="input-group input-group-flat">
-              <input type="password" class="form-control" name="password" autocomplete="off">
+          <h2 class="h2 text-center mb-1">Welcome back</h2>
+          <p class="text-secondary text-center mb-4">Sign in to continue to your dashboard</p>
+
+          <form method="post" autocomplete="off">
+            {% csrf_token %}
+
+            {% if messages %}
+              {% for message in messages %}
+                <div class="alert alert-danger alert-dismissible fade show" role="alert">
+                  {{ message }}
+                  <a class="btn-close" data-bs-dismiss="alert" aria-label="close"></a>
+                </div>
+              {% endfor %}
+            {% endif %}
+
+            <div class="mb-3">
+              <label class="form-label">Username</label>
+              <div class="input-icon">
+                <span class="input-icon-addon">
+                  <i class="fas fa-user"></i>
+                </span>
+                <input type="text" class="form-control" name="username" placeholder="Enter your username" required autofocus>
+              </div>
             </div>
-          </div>
-          <div class="form-footer d-flex justify-content-end">
-            <button type="submit" class="btn btn-primary w-50">
-              <i class="fas fa-sign-in-alt me-1"></i> Sign in
-            </button>
-          </div>
-       </form>
-     </div>
-   </div>
- </div>
-  <div class="text-center text-secondary mt-3">
-   Don't have an account yet?
-   <a href="{% url 'register' %}" class="btn btn-outline-primary ms-2">
-     <i class="fas fa-user-plus me-1"></i> Create Account
-   </a>
+            <div class="mb-3">
+              <label class="form-label">Password</label>
+              <div class="input-group input-group-flat">
+                <span class="input-group-text">
+                  <i class="fas fa-lock"></i>
+                </span>
+                <input type="password" class="form-control" id="login-password" name="password" placeholder="Enter your password" required>
+                <span class="input-group-text cursor-pointer" id="toggle-password" role="button" aria-label="Show password">
+                  <i class="fas fa-eye"></i>
+                </span>
+              </div>
+            </div>
+            <div class="form-footer">
+              <button type="submit" class="btn btn-primary w-100">
+                <i class="fas fa-sign-in-alt me-1"></i> Sign in
+              </button>
+            </div>
+          </form>
+        </div>
+      </div>
+      <div class="text-center text-secondary mt-3">
+        Don't have an account yet?
+        <a href="{% url 'register' %}" class="text-primary text-decoration-none fw-semibold">
+          Create an account
+        </a>
+      </div>
+    </div>
   </div>
-</div>
+
+  {% include 'theme/settings.html' %}
+
+  <script src="{% static 'js/tabler.js' %}" defer></script>
+  <script src="{% static 'js/demo.js' %}" defer></script>
+  <script>
+    document.addEventListener('DOMContentLoaded', function () {
+      const toggle = document.getElementById('toggle-password');
+      const input = document.getElementById('login-password');
+      if (toggle && input) {
+        toggle.addEventListener('click', function () {
+          const isPassword = input.getAttribute('type') === 'password';
+          input.setAttribute('type', isPassword ? 'text' : 'password');
+          const icon = toggle.querySelector('i');
+          if (icon) {
+            icon.classList.toggle('fa-eye', !isPassword);
+            icon.classList.toggle('fa-eye-slash', isPassword);
+          }
+        });
+      }
+    });
+  </script>
+</body>
+</html>
 
 {% include 'theme/settings.html' %}
 

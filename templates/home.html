@@ -1,4 +1,5 @@
 {% extends "theme/base.html" %}
+{% load static %}
 {% block content %}
 <div class="container-xl">
   <div class="page-header d-print-none" aria-label="Page header">
@@ -8,6 +9,9 @@
           <div class="page-pretitle">Overview</div>
           <div class="d-flex align-items-center gap-3 flex-wrap d-none d-md-flex">
             <h2 class="page-title mb-0">Dashboard</h2>
+            {% if role == 'student' and unseen_count %}
+            <span class="badge bg-red">{{ unseen_count }} New</span>
+            {% endif %}
           </div>
           <h2 class="page-title mb-0 d-md-none">Dashboard</h2>
         </div>
@@ -16,6 +20,11 @@
             <a href="{% url 'courses:course_list' %}" class="btn btn-primary">
               <i class="fas fa-book me-2"></i> Go to Courses
             </a>
+            {% if role == 'instructor' or user.is_staff or user.is_superuser %}
+            <a href="{% url 'courses:grading_queue' %}" class="btn btn-outline-primary">
+              <i class="fas fa-check-double me-2"></i> Grading Queue
+            </a>
+            {% endif %}
           </div>
         </div>
       </div>
@@ -53,7 +62,91 @@
       <div class="card"><div class="card-body"><div class="subheader">Pending Grading</div><div class="h1 mb-0">{{ stats.pending_grades }}</div></div></div>
     </div>
   </div>
+  <div class="row row-cards mt-1">
+    <div class="col-sm-6 col-lg-3">
+      <div class="card"><div class="card-body"><div class="subheader">Submission Rate</div><div class="h1 mb-0">{{ stats.submission_rate }}%</div></div></div>
+    </div>
+    <div class="col-sm-6 col-lg-3">
+      <div class="card"><div class="card-body"><div class="subheader">Ungraded</div><div class="h1 mb-0">{{ stats.ungraded_count }}</div></div></div>
+    </div>
+    <div class="col-sm-6 col-lg-3">
+      <div class="card"><div class="card-body"><div class="subheader">Upcoming Deadlines</div><div class="h1 mb-0">{{ stats.upcoming_deadlines }}</div></div></div>
+    </div>
+    <div class="col-sm-6 col-lg-3">
+      <div class="card"><div class="card-body d-flex align-items-center justify-content-between">
+        <div>
+          <div class="subheader">Quick Actions</div>
+          <div class="mt-2">
+            <a href="{% url 'courses:course_list' %}" class="btn btn-sm btn-primary">Manage Courses</a>
+          </div>
+        </div>
+        <i class="fas fa-bolt text-primary"></i>
+      </div></div>
+    </div>
+  </div>
+  <div class="row mt-3">
+    <div class="col-lg-6">
+      <div class="card">
+        <div class="card-header">
+          <h3 class="card-title">Recent Student Submissions</h3>
+          <div class="card-actions">
+            <a href="{% url 'courses:grading_queue' %}" class="btn btn-sm btn-primary">Grade All</a>
+          </div>
+        </div>
+        <div class="list-group list-group-flush list-group-hoverable">
+          {% for sub in recent_submissions %}
+          <div class="list-group-item">
+            <div class="row align-items-center">
+              <div class="col-auto"><span class="avatar avatar-sm">{{ sub.student.username|first|upper }}</span></div>
+              <div class="col text-truncate">
+                <div class="text-body d-block">{{ sub.student.get_full_name|default:sub.student.username }}</div>
+                <div class="d-block text-secondary text-truncate mt-n1">{{ sub.assignment.title }} · {{ sub.assignment.course.code }}</div>
+              </div>
+              <div class="col-auto text-muted">{{ sub.submitted_at|date:"M j, g:i A" }}</div>
+              <div class="col-auto">
+                <a href="{% url 'courses:submission_grade' pk=sub.pk %}" class="btn btn-sm btn-outline-primary">Grade</a>
+              </div>
+            </div>
+          </div>
+          {% empty %}
+          <div class="list-group-item text-muted">No recent submissions.</div>
+          {% endfor %}
+        </div>
+      </div>
+    </div>
+    <div class="col-lg-6">
+      <div class="card">
+        <div class="card-header">
+          <h3 class="card-title">Upcoming Deadlines</h3>
+        </div>
+        <div class="list-group list-group-flush">
+          {% for a in upcoming_assignments %}
+          <div class="list-group-item">
+            <div class="row align-items-center">
+              <div class="col text-truncate">
+                <div class="text-body d-block">{{ a.title }}</div>
+                <div class="d-block text-secondary mt-n1">{{ a.course.code }} · {{ a.course.name }}</div>
+              </div>
+              <div class="col-auto text-muted">Due {{ a.due_date|date:"M j, Y g:i A" }}</div>
+              <div class="col-auto">
+                <a href="{% url 'courses:assignment_detail' pk=a.pk %}" class="btn btn-sm btn-ghost-primary">View</a>
+              </div>
+            </div>
+          </div>
+          {% empty %}
+          <div class="list-group-item text-muted">No upcoming deadlines.</div>
+          {% endfor %}
+        </div>
+      </div>
+    </div>
+  </div>
   {% else %}
+  {% if unseen_count %}
+  <div class="alert alert-info d-flex align-items-center justify-content-between" role="alert">
+    <div><i class="fas fa-bell me-2"></i>You have <strong>{{ unseen_count }}</strong> new post(s) from your instructor(s).</div>
+    <span class="badge bg-blue-lt">New</span>
+  </div>
+  {% endif %}
   <div class="row row-cards">
     <div class="col-sm-6 col-lg-3">
       <div class="card"><div class="card-body"><div class="subheader">Enrolled Courses</div><div class="h1 mb-0">{{ stats.courses }}</div></div></div>
@@ -68,10 +161,109 @@
       <div class="card"><div class="card-body"><div class="subheader">Published Grades</div><div class="h1 mb-0">{{ stats.published_grades }}</div></div></div>
     </div>
   </div>
+  <div class="card mt-3">
+    <div class="card-header">
+      <h3 class="card-title">Activities & Projects from Instructors</h3>
+      <div class="card-actions">
+        <span class="text-secondary">Newest first</span>
+      </div>
+    </div>
+    <div class="list-group list-group-flush">
+      {% for post in posts %}
+      <div class="list-group-item {% if post.is_new %}bg-blue-lt{% endif %}" data-assignment-id="{{ post.assignment.id }}">
+        <div class="row align-items-center">
+          <div class="col-auto">
+            <span class="avatar avatar-sm">{{ post.instructor.username|first|upper }}</span>
+          </div>
+          <div class="col">
+            <div class="d-flex align-items-center gap-2 flex-wrap">
+              <a href="{% url 'courses:assignment_detail' pk=post.assignment.pk %}" class="text-body fw-semibold">{{ post.assignment.title }}</a>
+              <span class="badge bg-azure-lt">{{ post.assignment.get_category_display }}</span>
+              {% if post.is_new %}<span class="badge bg-red">New</span>{% endif %}
+              <span class="badge bg-secondary-lt">{{ post.course.code }}</span>
+            </div>
+            <div class="text-secondary mt-1">By {{ post.instructor.get_full_name|default:post.instructor.username }} · Posted {{ post.assignment.created_at|date:"M j, Y" }}</div>
+            {% if post.assignment.due_date %}
+            <div class="text-secondary">Deadline: {{ post.assignment.due_date|date:"M j, Y g:i A" }}</div>
+            {% endif %}
+            <div class="mt-2"><span class="badge {% if post.status == 'Graded' %}bg-green-lt{% elif post.status == 'Submitted' %}bg-amber-lt{% else %}bg-secondary-lt{% endif %}">{{ post.status }}</span></div>
+          </div>
+          <div class="col-auto">
+            {% if post.status == 'Not submitted' %}
+            <button class="btn btn-sm btn-primary" data-bs-toggle="modal" data-bs-target="#submitModal-{{ post.assignment.id }}">Submit</button>
+            {% elif post.status == 'Submitted' %}
+            <button class="btn btn-sm btn-outline-primary" data-bs-toggle="modal" data-bs-target="#submitModal-{{ post.assignment.id }}">Re-submit</button>
+            {% else %}
+            <a href="{% url 'courses:my_grades' %}" class="btn btn-sm btn-ghost-primary">View Grade</a>
+            {% endif %}
+          </div>
+        </div>
+      </div>
+      {% empty %}
+      <div class="list-group-item text-center text-muted py-4">No activities or projects posted yet.</div>
+      {% endfor %}
+    </div>
+  </div>
+
+  {% for post in posts %}
+  {% if post.status != 'Graded' or True %}
+  <div class="modal modal-blur fade" id="submitModal-{{ post.assignment.id }}" tabindex="-1">
+    <div class="modal-dialog modal-dialog-centered">
+      <div class="modal-content">
+        <form method="post" action="{% url 'courses:dashboard_submit' pk=post.assignment.id %}" enctype="multipart/form-data">
+          {% csrf_token %}
+          <div class="modal-header">
+            <h5 class="modal-title">Submit to {{ post.assignment.title }}</h5>
+            <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+          </div>
+          <div class="modal-body">
+            <p class="text-secondary">Course: {{ post.course.code }} · Instructor: {{ post.instructor.username }}</p>
+            {% if post.assignment.due_date %}<p class="text-secondary">Due: {{ post.assignment.due_date|date:"M j, Y g:i A" }}</p>{% endif %}
+            <div class="mb-2">
+              <label class="form-label">File attachment (zip/pdf)</label>
+              <input type="file" class="form-control" name="file_attachment">
+            </div>
+            <div class="mb-2">
+              <label class="form-label">GitHub URL</label>
+              <input type="url" class="form-control" name="github_url" placeholder="https://github.com/...">
+            </div>
+            <div class="mb-2">
+              <label class="form-label">Text content</label>
+              <textarea class="form-control" name="text_content" rows="3" placeholder="Paste notes or description..."></textarea>
+            </div>
+            <small class="text-muted">You can re-submit if needed; latest version is used for grading.</small>
+          </div>
+          <div class="modal-footer">
+            <button type="button" class="btn btn-link" data-bs-dismiss="modal">Cancel</button>
+            <button type="submit" class="btn btn-primary">Submit Work</button>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+  {% endif %}
+  {% endfor %}
+
   <div class="mt-3">
     <a href="{% url 'courses:my_grades' %}" class="btn btn-outline-primary"><i class="fas fa-graduation-cap me-2"></i>View My Grades</a>
+    <a href="{% url 'courses:student_history' %}" class="btn btn-outline-secondary"><i class="fas fa-history me-2"></i>My History</a>
   </div>
   {% endif %}
 
 </div>
+
+{% if role == 'student' %}
+<script>
+document.addEventListener('DOMContentLoaded', function(){
+  const items = document.querySelectorAll('.list-group-item[data-assignment-id]');
+  items.forEach(function(item){
+    const id = item.getAttribute('data-assignment-id');
+    fetch("{% url 'courses:mark_assignment_seen' pk=0 %}".replace('0', id), {
+      method: 'POST',
+      headers: {'X-CSRFToken': '{{ csrf_token }}'}
+    }).catch(function(){});
+  });
+});
+</script>
+{% endif %}
 {% endblock %}

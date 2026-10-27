@@ -8,7 +8,7 @@ everyone's submissions in one place instead of going through laptops one by one.
 ## What it can do
 
 - **Role-based accounts** — sign up as a Student or Instructor (ID number, age, and
-  address are required at registration and saved to Student Info).
+  address are required at registration and saved to Students Info).
 - **Courses** — instructors create courses with a unique code; students enroll.
 - **Assignments with categories** — Code Project, ERD / Diagram, Database Design,
   Documentation, or Other, each with a due date and max score.
@@ -17,7 +17,7 @@ everyone's submissions in one place instead of going through laptops one by one.
 - **Grading** — instructors grade each submission version with score + feedback and
   choose when to publish it; students only see published grades on My Grades.
 - **Dashboards** — role-aware stats for admins, instructors, and students.
-- **User & Student Info management** — admin-only user list, per-user info records.
+- **User & Students Info management** - admin-only user list, per-user info records.
 
 ## Tech stack
 

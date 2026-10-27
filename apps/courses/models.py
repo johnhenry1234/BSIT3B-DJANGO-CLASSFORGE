@@ -502,5 +502,33 @@ class FeedbackAnnotation(models.Model):
         return f'Comment by {self.author} on {self.grade.submission}'
 
 
+class AssignmentSeen(models.Model):
+    """Track which assignments a student has viewed on the dashboard."""
+
+    student = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        related_name='assignment_seen',
+        on_delete=models.CASCADE,
+    )
+    assignment = models.ForeignKey(
+        Assignment,
+        related_name='seen_by',
+        on_delete=models.CASCADE,
+    )
+    seen_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        db_table = 'assignment_seen'
+        constraints = [
+            models.UniqueConstraint(
+                fields=['student', 'assignment'], name='uq_assignment_seen_student_assignment'
+            )
+        ]
+        ordering = ['-seen_at']
+
+    def __str__(self):
+        return f'{self.student} seen {self.assignment}'
+
+
 # Concept-paper terminology alias (no table/model rename required).
 SubmissionVersion = Submission

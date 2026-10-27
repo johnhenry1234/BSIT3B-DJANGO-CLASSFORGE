@@ -93,6 +93,14 @@
           </a>
         </li>
         <li class="nav-item">
+          <a class="nav-link {% if request.resolver_match.url_name == 'student_history' %}active{% endif %}" href="{% url 'courses:student_history' %}">
+            <span class="nav-link-icon d-md-none d-lg-inline-block">
+              <i class="nav-icon fas fa-history"></i>
+            </span>
+            <span class="nav-link-title">History</span>
+          </a>
+        </li>
+        <li class="nav-item">
           <a class="nav-link {% if request.resolver_match.app_name == 'portfolio' %}active{% endif %}" href="{% url 'portfolio:my_portfolio' %}">
             <span class="nav-link-icon d-md-none d-lg-inline-block">
               <i class="nav-icon fas fa-id-badge"></i>
@@ -108,7 +116,7 @@
             <span class="nav-link-icon d-md-none d-lg-inline-block">
               <i class="nav-icon fas fa-address-card"></i>
             </span>
-            <span class="nav-link-title">Student Info</span>
+            <span class="nav-link-title">Students Info</span>
           </a>
         </li>
         {% endif %}

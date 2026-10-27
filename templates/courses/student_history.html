@@ -1,0 +1,54 @@
+{% extends "theme/base.html" %}
+{% block content %}
+<div class="container-xl">
+  <div class="page-header d-print-none">
+    <div class="row align-items-center">
+      <div class="col">
+        <div class="page-pretitle">ClassForge · Activity</div>
+        <h2 class="page-title mb-0">Recent Activity</h2>
+        <div class="text-secondary mt-1">Activity from you and your course instructors</div>
+      </div>
+    </div>
+  </div>
+  <br>
+  <div class="card">
+    <div class="list-group list-group-flush list-group-hoverable">
+      {% for log in logs %}
+      <div class="list-group-item">
+        <div class="row align-items-center">
+          <div class="col-auto">
+            <span class="avatar avatar-sm" style="background: linear-gradient(135deg, #2563eb 0%, #22d3ee 100%); color: #fff;">
+              {{ log.actor.username|first|upper|default:"S" }}
+            </span>
+          </div>
+          <div class="col text-truncate">
+            <div class="d-flex align-items-center gap-2">
+              <span class="text-body d-block">{{ log.actor.username|default:"System" }}</span>
+              <span class="badge bg-secondary-lt">{{ log.action }}</span>
+            </div>
+            <div class="d-block text-secondary text-truncate mt-n1">{{ log.description|default:log.action }}</div>
+          </div>
+          <div class="col-auto">
+            <span class="text-muted">{{ log.created_at|date:"M j, Y g:i A" }}</span>
+          </div>
+        </div>
+      </div>
+      {% empty %}
+      <div class="list-group-item text-center text-muted py-4">No recent activity to show yet.</div>
+      {% endfor %}
+    </div>
+    {% if page_obj.paginator.num_pages > 1 %}
+    <div class="card-footer d-flex align-items-center">
+      <ul class="pagination m-0 ms-auto">
+        {% if page_obj.has_previous %}
+        <li class="page-item"><a class="page-link" href="?page={{ page_obj.previous_page_number }}">Prev</a></li>
+        {% endif %}
+        {% if page_obj.has_next %}
+        <li class="page-item"><a class="page-link" href="?page={{ page_obj.next_page_number }}">Load more</a></li>
+        {% endif %}
+      </ul>
+    </div>
+    {% endif %}
+  </div>
+</div>
+{% endblock %}
