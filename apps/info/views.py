@@ -1,16 +1,17 @@
-from django.shortcuts import render
+from django.shortcuts import get_object_or_404, render
 from django.http import JsonResponse
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 from django.views.decorators.http import require_POST
 from django.core.paginator import Paginator
-from django.core.exceptions import ValidationError
+from django.core.exceptions import PermissionDenied, ValidationError
 from django.core.validators import validate_email
 from django.db import IntegrityError
 from django.db.models import Q
 
 from apps.scoping import scoped_info, scoped_infos
-from apps.courses.models import Course, Enrollment
+from apps.courses.models import Course, Enrollment, Submission
+from apps.users.roles import role_label
 from django.contrib.auth import get_user_model
 
 from .models import Info
@@ -19,6 +20,17 @@ User = get_user_model()
 
 MIN_AGE = 1
 MAX_AGE = 150
+
+
+def _grader_courses(user):
+    """Courses whose students the given instructor/TA may inspect."""
+    if user.is_superuser:
+        return Course.objects.all().order_by('code')
+    return (
+        Course.objects.filter(Q(instructor=user) | Q(assistants__user=user))
+        .distinct()
+        .order_by('code')
+    )
 
 
 def _parse_age(raw_age):
@@ -110,6 +122,53 @@ def info_list_page(request):
             'infos': infos,
             'query': query,
             'is_student_view': True,
+        },
+    )
+
+
+@login_required(login_url='login')
+def student_detail(request, pk):
+    """Show a student's profile to an instructor or TA who teaches them."""
+    student = get_object_or_404(User, pk=pk)
+    courses = _grader_courses(request.user)
+    enrollments = (
+        Enrollment.objects.filter(student=student, course__in=courses)
+        .select_related('course')
+        .order_by('course__code')
+    )
+    if not enrollments.exists():
+        raise PermissionDenied(
+            'You can only view students enrolled in your courses.'
+        )
+
+    # Imported lazily so the info app does not depend on project models at
+    # application-load time.
+    from apps.projects.models import Project
+
+    submissions = (
+        Submission.objects.filter(
+            student=student, assignment__course__in=courses
+        )
+        .select_related('assignment', 'assignment__course')
+        .prefetch_related('grade')
+        .order_by('-submitted_at')
+    )
+    projects = (
+        Project.objects.filter(student=student, assignment__course__in=courses)
+        .select_related('assignment', 'assignment__course')
+        .order_by('-updated_at')
+    )
+
+    return render(
+        request,
+        'info_student.html',
+        {
+            'student': student,
+            'student_role': role_label(student),
+            'infos': student.infos.all(),
+            'enrollments': enrollments,
+            'submissions': submissions,
+            'projects': projects,
         },
     )
 

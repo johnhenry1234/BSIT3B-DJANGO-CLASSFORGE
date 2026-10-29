@@ -1,0 +1,77 @@
+{% extends "theme/base.html" %}
+{% block content %}
+<div class="container-xl">
+  <div class="page-header d-print-none" aria-label="Page header">
+    <div class="container-xl">
+      <div class="row align-items-center">
+        <div class="col">
+          <div class="page-pretitle">
+            <a href="{% url 'projects:project_detail' project.id %}" class="text-muted">{{ project.title|default:project.assignment.title }}</a>
+            · Revision request
+          </div>
+          <h2 class="page-title mb-0">Request a revision</h2>
+          <div class="text-muted mt-1">
+            {{ project.student.get_full_name|default:project.student.username }} will be notified. The student can create a revision branch from the extension.
+          </div>
+        </div>
+        <div class="col-auto ms-auto">
+          <a href="{% url 'projects:project_detail' project.id %}" class="btn btn-ghost-secondary">Cancel</a>
+        </div>
+      </div>
+    </div>
+  </div>
+  <br>
+
+  {% for message in messages %}
+  <div class="alert alert-info alert-dismissible" role="alert">
+    <div>{{ message }}</div>
+    <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+  </div>
+  {% endfor %}
+
+  <div class="card">
+    <form method="POST">
+      {% csrf_token %}
+      <div class="card-body">
+        {% if form.non_field_errors %}<div class="alert alert-danger">{{ form.non_field_errors }}</div>{% endif %}
+        <div class="row g-3">
+          <div class="col-md-8">
+            <label class="form-label">Title <span class="text-danger">*</span></label>
+            {{ form.title }}
+            {% if form.title.errors %}<div class="text-danger small">{{ form.title.errors }}</div>{% endif %}
+          </div>
+          <div class="col-md-4">
+            <label class="form-label">Due date</label>
+            {{ form.due_date }}
+            {% if form.due_date.errors %}<div class="text-danger small">{{ form.due_date.errors }}</div>{% endif %}
+            <small class="form-hint">Optional deadline for the revision.</small>
+          </div>
+          <div class="col-12">
+            <label class="form-label">What should be changed?</label>
+            {{ form.description }}
+            {% if form.description.errors %}<div class="text-danger small">{{ form.description.errors }}</div>{% endif %}
+            <small class="form-hint">Be specific: files, requirements, rubric criteria or checks that must be addressed.</small>
+          </div>
+          <div class="col-md-6">
+            <label class="form-label">Snapshot to revise</label>
+            {{ form.snapshot }}
+            {% if form.snapshot.errors %}<div class="text-danger small">{{ form.snapshot.errors }}</div>{% endif %}
+          </div>
+          <div class="col-md-6">
+            <label class="form-label">Revision branch name</label>
+            {{ form.branch_name }}
+            {% if form.branch_name.errors %}<div class="text-danger small">{{ form.branch_name.errors }}</div>{% endif %}
+            <small class="form-hint">Used by the VS Code extension when it creates the revision branch.</small>
+          </div>
+        </div>
+      </div>
+      <div class="card-footer d-flex gap-2">
+        <a href="{% url 'projects:project_detail' project.id %}" class="btn btn-ghost-secondary">Cancel</a>
+        <button type="submit" class="btn btn-primary ms-auto">
+          <i class="fas fa-paper-plane me-2"></i> Send revision request
+        </button>
+      </div>
+    </form>
+  </div>
+</div>
+{% endblock %}

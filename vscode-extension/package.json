@@ -1,0 +1,106 @@
+{
+  "name": "classforge-vscode",
+  "displayName": "ClassForge",
+  "description": "Submit ClassForge projects, inspect assessment feedback and create revision branches without leaving VS Code.",
+  "version": "0.1.0",
+  "publisher": "classforge",
+  "license": "MIT",
+  "engines": {
+    "vscode": "^1.85.0"
+  },
+  "categories": [
+    "Education",
+    "Other"
+  ],
+  "keywords": [
+    "classforge",
+    "education",
+    "grading",
+    "project"
+  ],
+  "activationEvents": [],
+  "main": "./out/extension.js",
+  "contributes": {
+    "commands": [
+      {
+        "command": "classforge.signIn",
+        "title": "ClassForge: Sign In"
+      },
+      {
+        "command": "classforge.signOut",
+        "title": "ClassForge: Sign Out"
+      },
+      {
+        "command": "classforge.selectCourse",
+        "title": "ClassForge: Select Course"
+      },
+      {
+        "command": "classforge.selectAssignment",
+        "title": "ClassForge: Select Assignment"
+      },
+      {
+        "command": "classforge.previewSubmission",
+        "title": "ClassForge: Preview Submission Manifest"
+      },
+      {
+        "command": "classforge.submitProject",
+        "title": "ClassForge: Submit Project Snapshot"
+      },
+      {
+        "command": "classforge.checkStatus",
+        "title": "ClassForge: Check Assessment Status"
+      },
+      {
+        "command": "classforge.showFeedback",
+        "title": "ClassForge: Show Feedback"
+      },
+      {
+        "command": "classforge.createRevisionBranch",
+        "title": "ClassForge: Create Revision Branch"
+      },
+      {
+        "command": "classforge.openDashboard",
+        "title": "ClassForge: Open Web Dashboard"
+      }
+    ],
+    "configuration": {
+      "title": "ClassForge",
+      "properties": {
+        "classforge.serverUrl": {
+          "type": "string",
+          "default": "http://localhost:8000",
+          "description": "Base URL of the ClassForge server."
+        },
+        "classforge.maxFiles": {
+          "type": "number",
+          "default": 500,
+          "minimum": 1,
+          "description": "Maximum number of files allowed in one snapshot."
+        },
+        "classforge.maxBytes": {
+          "type": "number",
+          "default": 52428800,
+          "minimum": 1024,
+          "description": "Maximum total size of a snapshot in bytes."
+        },
+        "classforge.requestTimeoutMs": {
+          "type": "number",
+          "default": 120000,
+          "minimum": 1000,
+          "description": "HTTP request timeout for ClassForge API calls."
+        }
+      }
+    }
+  },
+  "scripts": {
+    "vscode:prepublish": "npm run compile",
+    "compile": "tsc -p ./",
+    "watch": "tsc -watch -p ./",
+    "test": "npm run compile && node --test out/test/*.test.js"
+  },
+  "devDependencies": {
+    "@types/node": "^20.11.30",
+    "@types/vscode": "^1.85.0",
+    "typescript": "^5.4.5"
+  }
+}

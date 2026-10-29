@@ -33,7 +33,7 @@ end
 # Unset irrelevant variables.
 deactivate nondestructive
 
-set -gx VIRTUAL_ENV 'C:\xampp\htdocs\BSIT3B-DJANGO-CLASSFORGE\.venv'
+set -gx VIRTUAL_ENV 'D:\MyFiles\htdocs\PROJECTS\BSIT3B-DJANGO-CLASSFORGE\.venv'
 
 set -gx _OLD_VIRTUAL_PATH $PATH
 set -gx PATH "$VIRTUAL_ENV/"Scripts $PATH

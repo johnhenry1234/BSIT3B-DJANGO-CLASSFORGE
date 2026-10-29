@@ -12,7 +12,6 @@
           </h2>
           <div class="text-muted mt-1">
             Submitted {{ submission.submitted_at|date:"M j, Y g:i A" }} · Max score {{ submission.assignment.effective_max_score|default:submission.assignment.max_score }}
-            {% if submission.github_url %}· <a href="{{ submission.github_url }}" target="_blank">GitHub</a>{% endif %}
           </div>
         </div>
         <div class="col-auto ms-auto">
@@ -39,13 +38,10 @@
       {% if submission.file_attachment %}
       <p><a href="{{ submission.file_attachment.url }}" class="btn btn-sm btn-outline-primary"><i class="fas fa-download me-2"></i>Download Attachment</a></p>
       {% endif %}
-      {% if submission.github_url %}
-      <p><a href="{{ submission.github_url }}" target="_blank" class="btn btn-sm btn-outline-secondary"><i class="fab fa-github me-2"></i>Open Repository</a></p>
-      {% endif %}
       {% if submission.text_content %}
       <div class="text-muted" style="white-space: pre-wrap;">{{ submission.text_content }}</div>
       {% endif %}
-      {% if not submission.file_attachment and not submission.text_content and not submission.github_url %}
+      {% if not submission.file_attachment and not submission.text_content %}
       <p class="text-muted">No content.</p>
       {% endif %}
     </div>

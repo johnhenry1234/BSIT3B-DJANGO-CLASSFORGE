@@ -1,0 +1,118 @@
+{% extends "theme/base.html" %}
+{% block content %}
+<div class="container-xl">
+  <div class="page-header d-print-none" aria-label="Page header">
+    <div class="container-xl">
+      <div class="row align-items-center">
+        <div class="col">
+          <div class="page-pretitle"><a href="{% url 'projects:project_detail' project.id %}" class="text-muted">{{ project.title|default:project.assignment.title }}</a> · Comparison</div>
+          <h2 class="page-title mb-0">
+            {% if base %}v{{ base.version }} → v{{ target.version }}{% else %}Snapshot v{{ target.version }}{% endif %}
+          </h2>
+          <div class="text-muted mt-1">Manifest comparison and text diffs generated server-side from immutable snapshots.</div>
+        </div>
+        <div class="col-auto ms-auto">
+          <div class="btn-list">
+            <a href="{% url 'projects:snapshot_detail' target.id %}" class="btn btn-ghost-secondary">Back to snapshot</a>
+            <a href="{% url 'projects:project_detail' project.id %}" class="btn btn-outline-secondary">Project</a>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+  <br>
+
+  <div class="card mb-3">
+    <div class="card-body">
+      <form method="GET" class="row g-2 align-items-end">
+        <div class="col-md-5">
+          <label class="form-label">Compare target v{{ target.version }} with</label>
+          <select name="base" class="form-select">
+            {% for item in snapshots %}
+            {% if item.version < target.version %}
+            <option value="{{ item.id }}" {% if base and base.id == item.id %}selected{% endif %}>v{{ item.version }} · {{ item.created_at|date:"M j, Y g:i A" }}</option>
+            {% endif %}
+            {% endfor %}
+          </select>
+        </div>
+        <div class="col-md-3">
+          <button class="btn btn-primary w-100">Compare</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  {% if diff %}
+  <div class="row row-cards mb-3">
+    <div class="col-md-3">
+      <div class="card"><div class="card-body">
+        <div class="text-muted">Added</div>
+        <div class="h1 mb-0 text-success">{{ diff.summary.added }}</div>
+      </div></div>
+    </div>
+    <div class="col-md-3">
+      <div class="card"><div class="card-body">
+        <div class="text-muted">Modified</div>
+        <div class="h1 mb-0 text-warning">{{ diff.summary.modified }}</div>
+      </div></div>
+    </div>
+    <div class="col-md-3">
+      <div class="card"><div class="card-body">
+        <div class="text-muted">Removed</div>
+        <div class="h1 mb-0 text-danger">{{ diff.summary.removed }}</div>
+      </div></div>
+    </div>
+    <div class="col-md-3">
+      <div class="card"><div class="card-body">
+        <div class="text-muted">Unchanged</div>
+        <div class="h1 mb-0">{{ diff.summary.unchanged }}</div>
+      </div></div>
+    </div>
+  </div>
+
+  <div class="card mb-3">
+    <div class="card-header"><div class="card-title">File changes</div></div>
+    <div class="table-responsive">
+      <table class="table table-vcenter card-table">
+        <thead><tr><th>Change</th><th>Path</th><th class="text-end">Size</th></tr></thead>
+        <tbody>
+        {% for item in diff.added %}
+        <tr><td><span class="badge bg-success-lt text-success">Added</span></td><td><code>{{ item.path }}</code></td><td class="text-end text-muted">{{ item.size|filesizeformat }}</td></tr>
+        {% endfor %}
+        {% for item in diff.modified %}
+        <tr><td><span class="badge bg-warning-lt text-warning">Modified</span></td><td><code>{{ item.path }}</code></td><td class="text-end text-muted">{{ item.size|filesizeformat }}</td></tr>
+        {% endfor %}
+        {% for item in diff.removed %}
+        <tr><td><span class="badge bg-danger-lt text-danger">Removed</span></td><td><code>{{ item.path }}</code></td><td class="text-end text-muted">{{ item.size|filesizeformat }}</td></tr>
+        {% endfor %}
+        {% if not diff.added and not diff.modified and not diff.removed %}
+        <tr><td colspan="3" class="text-muted">No manifest changes.</td></tr>
+        {% endif %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  {% if diff.text_diffs %}
+  <div class="card">
+    <div class="card-header"><div class="card-title">Text diffs</div></div>
+    <div class="card-body">
+      {% for item in diff.text_diffs %}
+      <h4 class="mb-2"><code>{{ item.path }}</code></h4>
+      <pre class="bg-dark-lt p-3 rounded small mb-4" style="max-height: 480px; overflow: auto; white-space: pre;">{{ item.diff }}</pre>
+      {% if item.truncated %}<p class="text-muted small">Diff truncated for display.</p>{% endif %}
+      {% endfor %}
+    </div>
+  </div>
+  {% else %}
+  <div class="alert alert-info" role="alert">No text diffs were generated (files may be binary, too large, or unchanged).</div>
+  {% endif %}
+  {% else %}
+  <div class="empty">
+    <div class="empty-icon"><i class="fas fa-code-compare fa-2x text-muted"></i></div>
+    <p class="empty-title">Nothing to compare</p>
+    <p class="empty-subtitle text-muted">This is the first snapshot for the project.</p>
+  </div>
+  {% endif %}
+</div>
+{% endblock %}

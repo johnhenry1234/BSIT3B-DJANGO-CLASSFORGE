@@ -80,8 +80,49 @@
         <div class="col-md-2"><label class="form-label">Max Points</label>{{ criterion_form.max_points }}</div>
         <div class="col-md-1"><label class="form-label">Weight</label>{{ criterion_form.weight }}</div>
         <div class="col-md-1"><label class="form-label">Order</label>{{ criterion_form.position }}</div>
+        <div class="col-md-6"><label class="form-label">Expected evidence</label>{{ criterion_form.expected_evidence }}<small class="form-hint">What the inspector/AI should look for (files, tables, docs).</small></div>
+        <div class="col-md-6"><label class="form-label">Scoring guidance</label>{{ criterion_form.scoring_guidance }}</div>
+        <div class="col-md-4"><label class="form-label">Validation rule</label>{{ criterion_form.validation_rule }}<small class="form-hint">Optional rule key, e.g. require_primary_keys.</small></div>
+        <div class="col-md-4"><label class="form-label">AI instructions</label>{{ criterion_form.ai_instructions }}</div>
+        <div class="col-md-4"><label class="form-label">Feedback requirements</label>{{ criterion_form.feedback_requirements }}</div>
       </div>
       <div class="card-footer"><button class="btn btn-outline-primary">Add Criterion</button></div>
+    </form>
+  </div>
+
+  <div class="card mt-3">
+    <div class="card-header"><div class="card-title">Published rubric versions</div></div>
+    <div class="table-responsive">
+      <table class="table table-vcenter card-table">
+        <thead><tr><th>Version</th><th>Points</th><th>Published by</th><th>Published at</th><th>Notes</th></tr></thead>
+        <tbody>
+        {% for version in rubric_versions %}
+        <tr>
+          <td><span class="badge bg-primary-lt text-primary">v{{ version.version }}</span></td>
+          <td>{{ version.total_points }}</td>
+          <td class="text-muted">{{ version.published_by.get_full_name|default:version.published_by.username|default:"—" }}</td>
+          <td class="text-muted">{{ version.published_at|date:"M j, Y g:i A" }}</td>
+          <td class="text-muted">{{ version.notes|default:"—"|truncatechars:120 }}</td>
+        </tr>
+        {% empty %}
+        <tr><td colspan="5" class="text-muted">No published versions yet. Assessments use the working rubric until you publish.</td></tr>
+        {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    <form method="POST">
+      {% csrf_token %}
+      <input type="hidden" name="action" value="publish_rubric">
+      <div class="card-footer">
+        <label class="form-label">Publication notes (optional)</label>
+        <input type="text" name="notes" class="form-control mb-2" maxlength="255" placeholder="e.g. Midterm rubric, final version">
+        <p class="text-muted small mb-2">
+          Publishing takes an immutable snapshot of the criteria. Assessments created afterwards use this version, so later edits do not rewrite past assessments.
+        </p>
+        <button class="btn btn-primary" onclick="return confirm('Publish a new immutable rubric version?');">
+          <i class="fas fa-lock me-2"></i> Publish rubric version
+        </button>
+      </div>
     </form>
   </div>
 </div>

@@ -1,0 +1,282 @@
+{% extends "theme/base.html" %}
+{% block content %}
+<div class="container-xl">
+  <div class="page-header d-print-none" aria-label="Page header">
+    <div class="container-xl">
+      <div class="row align-items-center">
+        <div class="col">
+          <div class="page-pretitle">ClassForge · {{ course.code }} · {{ assignment.title }}</div>
+          <h2 class="page-title mb-0">{{ project.title|default:assignment.title }}</h2>
+          <div class="text-muted mt-1">
+            {{ project.student.get_full_name|default:project.student.username }}
+            {% if project.student.get_full_name %}<span class="text-muted">({{ project.student.username }})</span>{% endif %}
+            · {{ project.snapshot_count }} snapshot{{ project.snapshot_count|pluralize }}
+            {% if project.is_archived %}<span class="badge bg-secondary-lt text-secondary ms-1">Archived</span>{% else %}<span class="badge bg-success-lt text-success ms-1">Active</span>{% endif %}
+          </div>
+        </div>
+        <div class="col-auto ms-auto">
+          <div class="btn-list">
+            <a href="{% url 'projects:project_list' %}" class="btn btn-ghost-secondary">Back</a>
+            <a href="{% url 'courses:assignment_detail' assignment.id %}" class="btn btn-outline-secondary">Assignment</a>
+            {% if is_owner or can_grade %}
+            <a href="{% url 'projects:pull_request_create' project.id %}" class="btn btn-outline-primary">
+              <i class="fas fa-code-pull-request me-2"></i> Pull request
+            </a>
+            {% endif %}
+            {% if can_grade %}
+            <a href="{% url 'projects:revision_create' project.id %}" class="btn btn-primary">
+              <i class="fas fa-rotate-left me-2"></i> Request revision
+            </a>
+            {% endif %}
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+  <br>
+
+  {% for message in messages %}
+  <div class="alert {% if message.tags == 'error' %}alert-danger{% elif message.tags == 'warning' %}alert-warning{% elif message.tags == 'success' %}alert-success{% else %}alert-info{% endif %} alert-dismissible" role="alert">
+    <div>{{ message }}</div>
+    <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+  </div>
+  {% endfor %}
+
+  <div class="row row-cards">
+    <div class="col-lg-8">
+      <div class="card">
+        <div class="card-header d-flex align-items-center">
+          <div class="card-title">Snapshots</div>
+          {% if latest_snapshot %}
+          <div class="ms-auto btn-list">
+            <a href="{% url 'projects:snapshot_detail' latest_snapshot.id %}" class="btn btn-sm btn-outline-primary">Open v{{ latest_snapshot.version }}</a>
+            {% if snapshots|length > 1 %}
+            <a href="{% url 'projects:snapshot_compare' latest_snapshot.id %}" class="btn btn-sm btn-outline-secondary">Compare</a>
+            {% endif %}
+          </div>
+          {% endif %}
+        </div>
+        <div class="table-responsive">
+          <table class="table table-vcenter table-hover card-table text-nowrap">
+            <thead>
+              <tr>
+                <th>Version</th>
+                <th>Branch</th>
+                <th>Source</th>
+                <th>Files</th>
+                <th>Size</th>
+                <th>Commit</th>
+                <th>Created</th>
+                <th class="w-1"></th>
+              </tr>
+            </thead>
+            <tbody>
+            {% for snapshot in snapshots %}
+            <tr>
+              <td>
+                <a href="{% url 'projects:snapshot_detail' snapshot.id %}" class="badge bg-primary-lt text-primary">v{{ snapshot.version }}</a>
+                {% if snapshot.note %}<div class="small text-muted">{{ snapshot.note|truncatechars:60 }}</div>{% endif %}
+              </td>
+              <td><code>{{ snapshot.branch }}</code></td>
+              <td><span class="badge bg-azure-lt text-azure">{{ snapshot.get_source_display }}</span></td>
+              <td>{{ snapshot.file_count }}</td>
+              <td class="text-muted">{{ snapshot.total_bytes|filesizeformat }}</td>
+              <td>
+                {% if snapshot.commit_sha %}
+                <code title="{{ snapshot.commit_sha }}">{{ snapshot.short_commit }}</code>
+                {% else %}<span class="text-muted">—</span>{% endif %}
+              </td>
+              <td class="text-muted">{{ snapshot.created_at|date:"M j, Y g:i A" }}</td>
+              <td>
+                <div class="btn-list flex-nowrap">
+                  <a href="{% url 'projects:snapshot_detail' snapshot.id %}" class="btn btn-ghost-secondary btn-icon btn-sm" title="Details"><i class="fas fa-eye text-primary"></i></a>
+                  {% if not forloop.last %}
+                  <a href="{% url 'projects:snapshot_compare' snapshot.id %}" class="btn btn-ghost-secondary btn-icon btn-sm" title="Compare with previous"><i class="fas fa-code-compare text-secondary"></i></a>
+                  {% endif %}
+                </div>
+              </td>
+            </tr>
+            {% empty %}
+            <tr><td colspan="8" class="text-muted">No snapshots yet. Upload one from the VS Code extension or submit a .zip on the assignment page.</td></tr>
+            {% endfor %}
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <div class="card mt-3">
+        <div class="card-header d-flex align-items-center">
+          <div class="card-title">Revision requests</div>
+          <div class="ms-auto text-muted small">{{ revisions|length }} total</div>
+        </div>
+        <div class="table-responsive">
+          <table class="table table-vcenter card-table">
+            <thead><tr><th>Title</th><th>Branch</th><th>Status</th><th>Requested by</th><th>Created</th><th class="w-1"></th></tr></thead>
+            <tbody>
+            {% for revision in revisions %}
+            <tr>
+              <td class="fw-semibold">
+                {{ revision.title }}
+                {% if revision.description %}<div class="small text-muted">{{ revision.description|truncatechars:100 }}</div>{% endif %}
+              </td>
+              <td><code>{{ revision.branch_name|default:"—" }}</code></td>
+              <td>
+                {% if revision.status == 'open' %}<span class="badge bg-warning-lt text-warning">Open</span>
+                {% elif revision.status == 'addressed' %}<span class="badge bg-success-lt text-success">Addressed</span>
+                {% else %}<span class="badge bg-secondary-lt text-secondary">Closed</span>{% endif %}
+              </td>
+              <td class="text-muted">{% if revision.requested_by %}{{ revision.requested_by.get_full_name|default:revision.requested_by.username }}{% else %}—{% endif %}</td>
+              <td class="text-muted">{{ revision.created_at|date:"M j, Y" }}</td>
+              <td>
+                {% if can_grade and revision.is_open %}
+                <form method="POST" action="{% url 'projects:revision_update' revision.id %}" class="d-flex gap-1">
+                  {% csrf_token %}
+                  <input type="hidden" name="status" value="addressed">
+                  <button class="btn btn-sm btn-outline-success">Mark addressed</button>
+                </form>
+                {% endif %}
+              </td>
+            </tr>
+            {% empty %}
+            <tr><td colspan="6" class="text-muted">No revision requests.</td></tr>
+            {% endfor %}
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <div class="card mt-3">
+        <div class="card-header">
+          <div class="card-title">Pull requests</div>
+        </div>
+        <div class="table-responsive">
+          <table class="table table-vcenter card-table">
+            <thead><tr><th>#</th><th>Title</th><th>Branch</th><th>Status</th><th>Created</th><th class="w-1"></th></tr></thead>
+            <tbody>
+            {% for pull_request in pull_requests %}
+            <tr>
+              <td class="text-muted">#{{ pull_request.id }}</td>
+              <td class="fw-semibold"><a href="{% url 'projects:pull_request_detail' pull_request.id %}">{{ pull_request.title }}</a></td>
+              <td><code>{{ pull_request.source_branch }} → {{ pull_request.target_branch }}</code></td>
+              <td>
+                {% if pull_request.status == 'open' %}<span class="badge bg-warning-lt text-warning">Open</span>
+                {% elif pull_request.status == 'merged' %}<span class="badge bg-success-lt text-success">Merged</span>
+                {% else %}<span class="badge bg-secondary-lt text-secondary">Closed</span>{% endif %}
+              </td>
+              <td class="text-muted">{{ pull_request.created_at|date:"M j, Y" }}</td>
+              <td><a href="{% url 'projects:pull_request_detail' pull_request.id %}" class="btn btn-sm btn-ghost-secondary">View</a></td>
+            </tr>
+            {% empty %}
+            <tr><td colspan="6" class="text-muted">No pull requests.</td></tr>
+            {% endfor %}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <div class="col-lg-4">
+      <div class="card">
+        <div class="card-header"><div class="card-title">Latest assessment</div></div>
+        <div class="card-body">
+          {% if latest_snapshot %}
+            {% with assessment=latest_snapshot.latest_assessment %}
+            {% if assessment %}
+              <div class="d-flex align-items-center justify-content-between mb-2">
+                <span class="badge {% if assessment.engine == 'ai' %}bg-purple-lt text-purple{% else %}bg-azure-lt text-azure{% endif %}">
+                  {{ assessment.get_engine_display }}
+                </span>
+                {% if assessment.status == 'completed' %}<span class="badge bg-success-lt text-success">Completed</span>
+                {% elif assessment.status == 'failed' %}<span class="badge bg-danger-lt text-danger">Failed</span>
+                {% elif assessment.status == 'running' %}<span class="badge bg-info-lt text-info">Running</span>
+                {% else %}<span class="badge bg-warning-lt text-warning">Queued</span>{% endif %}
+              </div>
+              <div class="h1 mb-1">
+                {% if assessment.instructor_score is not None %}{{ assessment.instructor_score }}{% elif assessment.overall_score is not None %}{{ assessment.overall_score }}{% else %}—{% endif %}
+                <span class="text-muted fs-3">/ {{ assessment.max_score }}</span>
+              </div>
+              <div class="text-muted small mb-2">{{ assessment.summary|truncatechars:180 }}</div>
+              <div class="mb-3">
+                {% if assessment.requires_review %}
+                  {% if assessment.review_status == 'pending' %}<span class="badge bg-warning-lt text-warning">Needs instructor review</span>
+                  {% elif assessment.review_status == 'approved' %}<span class="badge bg-success-lt text-success">Approved</span>
+                  {% elif assessment.review_status == 'overridden' %}<span class="badge bg-azure-lt text-azure">Overridden</span>
+                  {% else %}<span class="badge bg-secondary-lt text-secondary">Rejected</span>{% endif %}
+                {% else %}
+                  <span class="badge bg-success-lt text-success">No review required</span>
+                {% endif %}
+              </div>
+              <div class="btn-list">
+                <a href="{% url 'projects:snapshot_detail' latest_snapshot.id %}" class="btn btn-sm btn-outline-primary">View draft</a>
+                {% if can_grade %}
+                <a href="{% url 'projects:assessment_review' assessment.id %}" class="btn btn-sm btn-primary">Review</a>
+                {% endif %}
+              </div>
+            {% else %}
+              <p class="text-muted mb-3">No assessment has been requested for the latest snapshot.</p>
+              {% if is_owner or can_grade %}
+              <form method="POST" action="{% url 'projects:snapshot_assess' latest_snapshot.id %}">
+                {% csrf_token %}
+                <button class="btn btn-primary w-100"><i class="fas fa-wand-magic-sparkles me-2"></i> Request assessment</button>
+              </form>
+              {% endif %}
+            {% endif %}
+            {% endwith %}
+          {% else %}
+            <p class="text-muted mb-0">Upload a snapshot first.</p>
+          {% endif %}
+        </div>
+      </div>
+
+      <div class="card mt-3">
+        <div class="card-header"><div class="card-title">Repository</div></div>
+        <div class="card-body">
+          {% if repository %}
+          <dl class="row mb-0">
+            <dt class="col-5 text-muted">Provider</dt><dd class="col-7">{{ repository.provider }}</dd>
+            <dt class="col-5 text-muted">Git workspace</dt>
+            <dd class="col-7">{% if repository.git_initialised %}<span class="badge bg-success-lt text-success">Initialised</span>{% else %}<span class="badge bg-secondary-lt text-secondary">Not initialised</span>{% endif %}</dd>
+            <dt class="col-5 text-muted">Default branch</dt><dd class="col-7"><code>{{ repository.default_branch }}</code></dd>
+            <dt class="col-5 text-muted">Current branch</dt><dd class="col-7"><code>{{ repository.current_branch }}</code></dd>
+            <dt class="col-5 text-muted">Last commit</dt>
+            <dd class="col-7">{% if repository.last_commit_sha %}<code title="{{ repository.last_commit_sha }}">{{ repository.last_commit_sha|slice:":12" }}</code>{% else %}—{% endif %}</dd>
+          </dl>
+          {% else %}
+          <p class="text-muted mb-0">Git metadata is created with the first snapshot.</p>
+          {% endif %}
+        </div>
+      </div>
+
+      <div class="card mt-3">
+        <div class="card-header"><div class="card-title">Grade</div></div>
+        <div class="card-body">
+          {% if grade %}
+          <div class="h2 mb-1">{{ grade.score }} <span class="text-muted fs-3">/ {{ assignment.effective_max_score }}</span></div>
+          {% if grade.is_published %}<span class="badge bg-success-lt text-success">Published</span>{% else %}<span class="badge bg-warning-lt text-warning">Draft — not published</span>{% endif %}
+          {% if grade.feedback %}<div class="text-muted mt-2 small">{{ grade.feedback|truncatechars:220 }}</div>{% endif %}
+          {% else %}
+          <p class="text-muted mb-0">No grade has been created for this project yet.</p>
+          {% endif %}
+        </div>
+      </div>
+
+      {% if assessments %}
+      <div class="card mt-3">
+        <div class="card-header"><div class="card-title">Assessment history</div></div>
+        <div class="list-group list-group-flush">
+          {% for item in assessments %}
+          <div class="list-group-item d-flex align-items-center justify-content-between">
+            <div>
+              <div class="fw-semibold">v{{ item.snapshot.version }}</div>
+              <div class="text-muted small">{{ item.created_at|date:"M j, Y g:i A" }}</div>
+            </div>
+            <span class="badge {% if item.status == 'completed' %}bg-success-lt text-success{% elif item.status == 'failed' %}bg-danger-lt text-danger{% else %}bg-warning-lt text-warning{% endif %}">{{ item.get_status_display }}</span>
+          </div>
+          {% endfor %}
+        </div>
+      </div>
+      {% endif %}
+    </div>
+  </div>
+</div>
+{% endblock %}

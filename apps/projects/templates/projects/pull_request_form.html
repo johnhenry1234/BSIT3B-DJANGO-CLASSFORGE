@@ -1,0 +1,79 @@
+{% extends "theme/base.html" %}
+{% block content %}
+<div class="container-xl">
+  <div class="page-header d-print-none" aria-label="Page header">
+    <div class="container-xl">
+      <div class="row align-items-center">
+        <div class="col">
+          <div class="page-pretitle">
+            <a href="{% url 'projects:project_detail' project.id %}" class="text-muted">{{ project.title|default:project.assignment.title }}</a>
+            · Pull request
+          </div>
+          <h2 class="page-title mb-0">Open a pull request</h2>
+          <div class="text-muted mt-1">
+            Ask the instructor to review a snapshot. Merging records the merge in the server-owned Git workspace; approve the grade separately.
+          </div>
+        </div>
+        <div class="col-auto ms-auto">
+          <a href="{% url 'projects:project_detail' project.id %}" class="btn btn-ghost-secondary">Cancel</a>
+        </div>
+      </div>
+    </div>
+  </div>
+  <br>
+
+  {% for message in messages %}
+  <div class="alert alert-info alert-dismissible" role="alert">
+    <div>{{ message }}</div>
+    <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+  </div>
+  {% endfor %}
+
+  <div class="card">
+    <form method="POST">
+      {% csrf_token %}
+      <div class="card-body">
+        {% if form.non_field_errors %}<div class="alert alert-danger">{{ form.non_field_errors }}</div>{% endif %}
+        <div class="row g-3">
+          <div class="col-12">
+            <label class="form-label">Title <span class="text-danger">*</span></label>
+            {{ form.title }}
+            {% if form.title.errors %}<div class="text-danger small">{{ form.title.errors }}</div>{% endif %}
+          </div>
+          <div class="col-12">
+            <label class="form-label">Description</label>
+            {{ form.description }}
+            {% if form.description.errors %}<div class="text-danger small">{{ form.description.errors }}</div>{% endif %}
+          </div>
+          <div class="col-md-6">
+            <label class="form-label">Source snapshot</label>
+            {{ form.source_snapshot }}
+            {% if form.source_snapshot.errors %}<div class="text-danger small">{{ form.source_snapshot.errors }}</div>{% endif %}
+          </div>
+          <div class="col-md-6">
+            <label class="form-label">Related revision request</label>
+            {{ form.revision_request }}
+            {% if form.revision_request.errors %}<div class="text-danger small">{{ form.revision_request.errors }}</div>{% endif %}
+          </div>
+          <div class="col-md-6">
+            <label class="form-label">Source branch</label>
+            {{ form.source_branch }}
+            {% if form.source_branch.errors %}<div class="text-danger small">{{ form.source_branch.errors }}</div>{% endif %}
+          </div>
+          <div class="col-md-6">
+            <label class="form-label">Target branch</label>
+            {{ form.target_branch }}
+            {% if form.target_branch.errors %}<div class="text-danger small">{{ form.target_branch.errors }}</div>{% endif %}
+          </div>
+        </div>
+      </div>
+      <div class="card-footer d-flex gap-2">
+        <a href="{% url 'projects:project_detail' project.id %}" class="btn btn-ghost-secondary">Cancel</a>
+        <button type="submit" class="btn btn-primary ms-auto">
+          <i class="fas fa-code-pull-request me-2"></i> Create pull request
+        </button>
+      </div>
+    </form>
+  </div>
+</div>
+{% endblock %}

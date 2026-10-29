@@ -1,0 +1,136 @@
+{% extends "theme/base.html" %}
+{% block content %}
+<div class="container-xl">
+  <div class="page-header d-print-none" aria-label="Page header">
+    <div class="container-xl">
+      <div class="row align-items-center">
+        <div class="col">
+          <div class="page-pretitle">
+            <a href="{% url 'projects:project_detail' project.id %}" class="text-muted">{{ project.title|default:project.assignment.title }}</a>
+            · Pull request #{{ pull_request.id }}
+          </div>
+          <h2 class="page-title mb-0">{{ pull_request.title }}</h2>
+          <div class="text-muted mt-1">
+            <code>{{ pull_request.source_branch }}</code> → <code>{{ pull_request.target_branch }}</code>
+            · opened by {% if pull_request.created_by %}{{ pull_request.created_by.get_full_name|default:pull_request.created_by.username }}{% else %}—{% endif %}
+            · {{ pull_request.created_at|date:"M j, Y g:i A" }}
+          </div>
+        </div>
+        <div class="col-auto ms-auto">
+          <div class="btn-list">
+            <a href="{% url 'projects:project_detail' project.id %}" class="btn btn-ghost-secondary">Project</a>
+            {% if pull_request.source_snapshot %}
+            <a href="{% url 'projects:snapshot_detail' pull_request.source_snapshot.id %}" class="btn btn-outline-secondary">Source snapshot</a>
+            {% endif %}
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+  <br>
+
+  {% for message in messages %}
+  <div class="alert {% if message.tags == 'error' %}alert-danger{% elif message.tags == 'warning' %}alert-warning{% elif message.tags == 'success' %}alert-success{% else %}alert-info{% endif %} alert-dismissible" role="alert">
+    <div>{{ message }}</div>
+    <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+  </div>
+  {% endfor %}
+
+  <div class="row row-cards">
+    <div class="col-lg-8">
+      <div class="card">
+        <div class="card-header d-flex align-items-center">
+          <div class="card-title">Conversation</div>
+          {% if pull_request.status == 'open' %}<span class="badge bg-warning-lt text-warning ms-auto">Open</span>
+          {% elif pull_request.status == 'merged' %}<span class="badge bg-success-lt text-success ms-auto">Merged</span>
+          {% else %}<span class="badge bg-secondary-lt text-secondary ms-auto">Closed</span>{% endif %}
+        </div>
+        <div class="card-body">
+          {% if pull_request.description %}
+          <div class="mb-3 pb-3 border-bottom">
+            <div class="fw-semibold mb-1">{% if pull_request.created_by %}{{ pull_request.created_by.get_full_name|default:pull_request.created_by.username }}{% else %}Author{% endif %}</div>
+            <div class="text-muted" style="white-space: pre-wrap;">{{ pull_request.description }}</div>
+          </div>
+          {% endif %}
+
+          {% for comment in pull_request.comments.all %}
+          <div class="mb-3 pb-3 {% if not forloop.last %}border-bottom{% endif %}">
+            <div class="d-flex align-items-center justify-content-between">
+              <span class="fw-semibold">{{ comment.author.get_full_name|default:comment.author.username }}</span>
+              <span class="text-muted small">{{ comment.created_at|date:"M j, Y g:i A" }}</span>
+            </div>
+            <div class="text-muted" style="white-space: pre-wrap;">{{ comment.body }}</div>
+          </div>
+          {% empty %}
+          <p class="text-muted">No comments yet.</p>
+          {% endfor %}
+        </div>
+        {% if pull_request.status == 'open' %}
+        <div class="card-footer">
+          <form method="POST">
+            {% csrf_token %}
+            <input type="hidden" name="action" value="comment">
+            <label class="form-label">Add a comment</label>
+            {{ comment_form.body }}
+            {% if comment_form.body.errors %}<div class="text-danger small">{{ comment_form.body.errors }}</div>{% endif %}
+            <button class="btn btn-outline-primary mt-2">Comment</button>
+          </form>
+        </div>
+        {% endif %}
+      </div>
+
+      {% if pull_request.merged_snapshot %}
+      <div class="card mt-3">
+        <div class="card-body">
+          <span class="badge bg-success-lt text-success">Merged snapshot</span>
+          <a href="{% url 'projects:snapshot_detail' pull_request.merged_snapshot.id %}" class="ms-1">v{{ pull_request.merged_snapshot.version }}</a>
+          {% if pull_request.merge_commit_sha %}<div class="small text-muted mt-1">Merge commit <code>{{ pull_request.merge_commit_sha }}</code></div>{% endif %}
+        </div>
+      </div>
+      {% endif %}
+    </div>
+
+    <div class="col-lg-4">
+      <div class="card">
+        <div class="card-header"><div class="card-title">Review</div></div>
+        <div class="card-body">
+          <dl class="row mb-0">
+            <dt class="col-5 text-muted">Status</dt><dd class="col-7">{{ pull_request.get_status_display }}</dd>
+            <dt class="col-5 text-muted">Source snapshot</dt>
+            <dd class="col-7">{% if pull_request.source_snapshot %}<a href="{% url 'projects:snapshot_detail' pull_request.source_snapshot.id %}">v{{ pull_request.source_snapshot.version }}</a>{% else %}—{% endif %}</dd>
+            <dt class="col-5 text-muted">Revision request</dt>
+            <dd class="col-7">{% if pull_request.revision_request %}{{ pull_request.revision_request.title }}{% else %}—{% endif %}</dd>
+            <dt class="col-5 text-muted">Reviewed by</dt><dd class="col-7">{% if pull_request.reviewed_by %}{{ pull_request.reviewed_by.get_full_name|default:pull_request.reviewed_by.username }}{% else %}—{% endif %}</dd>
+            <dt class="col-5 text-muted">Merged at</dt><dd class="col-7">{{ pull_request.merged_at|date:"M j, Y g:i A"|default:"—" }}</dd>
+            <dt class="col-5 text-muted">Merge commit</dt>
+            <dd class="col-7">{% if pull_request.merge_commit_sha %}<code>{{ pull_request.merge_commit_sha|slice:":12" }}</code>{% else %}—{% endif %}</dd>
+          </dl>
+        </div>
+        {% if is_grader and pull_request.status == 'open' %}
+        <div class="card-footer d-flex flex-column gap-2">
+          <form method="POST">
+            {% csrf_token %}
+            <input type="hidden" name="action" value="merge">
+            <button class="btn btn-success w-100">
+              <i class="fas fa-code-merge me-2"></i> Merge pull request
+            </button>
+          </form>
+          <form method="POST" onsubmit="return confirm('Close this pull request without merging?');">
+            {% csrf_token %}
+            <input type="hidden" name="action" value="close">
+            <button class="btn btn-outline-danger w-100">Close without merging</button>
+          </form>
+          <p class="text-muted small mb-0">Merging records the Git merge when the server-owned workspace is available. It does not publish a grade.</p>
+        </div>
+        {% endif %}
+      </div>
+
+      {% if not is_grader %}
+      <div class="alert alert-info mt-3" role="alert">
+        <div class="small">Only the instructor or a TA can merge or close this pull request.</div>
+      </div>
+      {% endif %}
+    </div>
+  </div>
+</div>
+{% endblock %}

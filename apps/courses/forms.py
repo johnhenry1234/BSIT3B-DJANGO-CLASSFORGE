@@ -37,11 +37,25 @@ class AssignmentForm(forms.ModelForm):
             'description',
             'due_date',
             'max_score',
+            'status',
             'guidelines',
             'required_files',
+            'expected_outcomes',
+            'accepted_formats',
+            'required_directories',
+            'documentation_requirements',
+            'validation_rules',
+            'required_tests',
+            'max_upload_mb',
+            'ai_grading_mode',
+            'manual_review_required',
+            'late_policy',
+            'late_penalty_percent',
+            'allow_resubmission',
+            'revision_deadline_days',
+            'default_exclusions',
             'accepts_zip',
             'accepts_pdf',
-            'accepts_github',
             'ai_auto_run',
         ]
         widgets = {
@@ -52,6 +66,7 @@ class AssignmentForm(forms.ModelForm):
                 attrs={'class': 'form-control', 'type': 'datetime-local'}
             ),
             'max_score': forms.NumberInput(attrs={'class': 'form-control'}),
+            'status': forms.Select(attrs={'class': 'form-select'}),
             'guidelines': forms.Textarea(
                 attrs={
                     'class': 'form-control',
@@ -66,9 +81,58 @@ class AssignmentForm(forms.ModelForm):
                     'placeholder': 'README.md\nrequirements.txt\nschema.sql',
                 }
             ),
+            'expected_outcomes': forms.Textarea(
+                attrs={'class': 'form-control', 'rows': 3}
+            ),
+            'accepted_formats': forms.Textarea(
+                attrs={
+                    'class': 'form-control',
+                    'rows': 3,
+                    'placeholder': '.zip\n.sql\n.sqlite\n.pdf\n.md',
+                }
+            ),
+            'required_directories': forms.Textarea(
+                attrs={'class': 'form-control', 'rows': 3, 'placeholder': 'src\ndocs'}
+            ),
+            'documentation_requirements': forms.Textarea(
+                attrs={'class': 'form-control', 'rows': 3}
+            ),
+            'validation_rules': forms.Textarea(
+                attrs={
+                    'class': 'form-control',
+                    'rows': 4,
+                    'placeholder': 'require_readme\nrequire_primary_keys\nrequire_foreign_keys\nforbid_secrets',
+                }
+            ),
+            'required_tests': forms.Textarea(
+                attrs={
+                    'class': 'form-control',
+                    'rows': 3,
+                    'placeholder': 'python manage.py test',
+                }
+            ),
+            'max_upload_mb': forms.NumberInput(attrs={'class': 'form-control'}),
+            'ai_grading_mode': forms.Select(attrs={'class': 'form-select'}),
+            'manual_review_required': forms.CheckboxInput(
+                attrs={'class': 'form-check-input'}
+            ),
+            'late_policy': forms.Select(attrs={'class': 'form-select'}),
+            'late_penalty_percent': forms.NumberInput(
+                attrs={'class': 'form-control', 'step': '0.01'}
+            ),
+            'allow_resubmission': forms.CheckboxInput(
+                attrs={'class': 'form-check-input'}
+            ),
+            'revision_deadline_days': forms.NumberInput(attrs={'class': 'form-control'}),
+            'default_exclusions': forms.Textarea(
+                attrs={
+                    'class': 'form-control',
+                    'rows': 3,
+                    'placeholder': '*.log\ntmp/**\n.env.local',
+                }
+            ),
             'accepts_zip': forms.CheckboxInput(attrs={'class': 'form-check-input'}),
             'accepts_pdf': forms.CheckboxInput(attrs={'class': 'form-check-input'}),
-            'accepts_github': forms.CheckboxInput(attrs={'class': 'form-check-input'}),
             'ai_auto_run': forms.CheckboxInput(attrs={'class': 'form-check-input'}),
         }
 
@@ -78,11 +142,10 @@ class AssignmentForm(forms.ModelForm):
             [
                 cleaned.get('accepts_zip'),
                 cleaned.get('accepts_pdf'),
-                cleaned.get('accepts_github'),
             ]
         ):
             raise ValidationError(
-                'Enable at least one accepted submission type (.zip, PDF, or GitHub URL).'
+                'Enable at least one accepted submission type (.zip or PDF).'
             )
         return cleaned
 
@@ -90,15 +153,9 @@ class AssignmentForm(forms.ModelForm):
 class SubmissionForm(forms.ModelForm):
     class Meta:
         model = Submission
-        fields = ['file_attachment', 'github_url', 'text_content']
+        fields = ['file_attachment', 'text_content']
         widgets = {
             'file_attachment': forms.ClearableFileInput(attrs={'class': 'form-control'}),
-            'github_url': forms.URLInput(
-                attrs={
-                    'class': 'form-control',
-                    'placeholder': 'https://github.com/username/project',
-                }
-            ),
             'text_content': forms.Textarea(
                 attrs={'class': 'form-control', 'rows': 5}
             ),
@@ -116,12 +173,11 @@ class SubmissionForm(forms.ModelForm):
     def clean(self):
         cleaned = super().clean()
         file_attachment = cleaned.get('file_attachment')
-        github_url = (cleaned.get('github_url') or '').strip()
         text_content = (cleaned.get('text_content') or '').strip()
 
-        if not file_attachment and not github_url and not text_content:
+        if not file_attachment and not text_content:
             raise forms.ValidationError(
-                'Provide a file attachment, a GitHub repository link, or text content.'
+                'Provide a file attachment or text content.'
             )
 
         assignment = self.assignment
@@ -140,14 +196,6 @@ class SubmissionForm(forms.ModelForm):
                     'file_attachment',
                     'Only .zip code archives and PDF documentation are accepted.',
                 )
-
-        if assignment and github_url and not assignment.accepts_github:
-            self.add_error(
-                'github_url', 'This assignment does not accept GitHub links.'
-            )
-
-        if github_url and 'github.com' not in github_url.lower():
-            self.add_error('github_url', 'Enter a GitHub repository URL.')
 
         return cleaned
 
@@ -178,7 +226,18 @@ class RubricForm(forms.ModelForm):
 class RubricCriterionForm(forms.ModelForm):
     class Meta:
         model = RubricCriterion
-        fields = ['name', 'description', 'max_points', 'weight', 'position']
+        fields = [
+            'name',
+            'description',
+            'max_points',
+            'weight',
+            'position',
+            'expected_evidence',
+            'scoring_guidance',
+            'validation_rule',
+            'ai_instructions',
+            'feedback_requirements',
+        ]
         widgets = {
             'name': forms.TextInput(attrs={'class': 'form-control form-control-sm'}),
             'description': forms.TextInput(attrs={'class': 'form-control form-control-sm'}),
@@ -189,6 +248,24 @@ class RubricCriterionForm(forms.ModelForm):
                 attrs={'class': 'form-control form-control-sm', 'step': '0.01'}
             ),
             'position': forms.NumberInput(attrs={'class': 'form-control form-control-sm'}),
+            'expected_evidence': forms.Textarea(
+                attrs={'class': 'form-control form-control-sm', 'rows': 2}
+            ),
+            'scoring_guidance': forms.Textarea(
+                attrs={'class': 'form-control form-control-sm', 'rows': 2}
+            ),
+            'validation_rule': forms.TextInput(
+                attrs={
+                    'class': 'form-control form-control-sm',
+                    'placeholder': 'require_primary_keys',
+                }
+            ),
+            'ai_instructions': forms.Textarea(
+                attrs={'class': 'form-control form-control-sm', 'rows': 2}
+            ),
+            'feedback_requirements': forms.Textarea(
+                attrs={'class': 'form-control form-control-sm', 'rows': 2}
+            ),
         }
 
 

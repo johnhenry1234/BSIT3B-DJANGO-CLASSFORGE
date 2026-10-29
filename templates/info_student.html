@@ -1,0 +1,172 @@
+{% extends "theme/base.html" %}
+{% block content %}
+<div class="container-xl">
+  <div class="page-header d-print-none" aria-label="Page header">
+    <div class="container-xl">
+      <div class="row align-items-center">
+        <div class="col">
+          <div class="page-pretitle">
+            <a href="{% url 'info:info_list' %}" class="text-muted">Students Info</a>
+          </div>
+          <h2 class="page-title mb-0">
+            {{ student.get_full_name|default:student.username }}
+          </h2>
+          <div class="text-muted mt-1">
+            {{ student.username }} · {{ student_role }}
+          </div>
+        </div>
+        <div class="col-auto ms-auto">
+          <a href="{% url 'info:info_list' %}" class="btn btn-ghost-secondary">
+            Back to students
+          </a>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="row row-cards">
+    <div class="col-lg-4">
+      <div class="card">
+        <div class="card-header">
+          <h3 class="card-title">Student profile</h3>
+        </div>
+        <div class="card-body">
+          <dl class="row mb-0">
+            <dt class="col-4 text-muted">Username</dt>
+            <dd class="col-8">{{ student.username }}</dd>
+            <dt class="col-4 text-muted">Email</dt>
+            <dd class="col-8">{{ student.email|default:"—" }}</dd>
+            <dt class="col-4 text-muted">Role</dt>
+            <dd class="col-8">{{ student_role }}</dd>
+            <dt class="col-4 text-muted">Joined</dt>
+            <dd class="col-8">{{ student.date_joined|date:"M j, Y" }}</dd>
+          </dl>
+        </div>
+      </div>
+
+      <div class="card mt-3">
+        <div class="card-header">
+          <h3 class="card-title">Personal info</h3>
+        </div>
+        <div class="card-body">
+          {% for info in infos %}
+          <div class="{% if not forloop.last %}mb-3 pb-3 border-bottom{% endif %}">
+            <div class="fw-semibold">{{ info.name }}</div>
+            <div class="text-muted small">ID: {{ info.id_number }}</div>
+            <div class="text-muted small">Age: {{ info.age }}</div>
+            <div class="text-muted small">Address: {{ info.address }}</div>
+            {% if info.email %}<div class="text-muted small">Email: {{ info.email }}</div>{% endif %}
+          </div>
+          {% empty %}
+          <span class="text-muted">No personal info recorded.</span>
+          {% endfor %}
+        </div>
+      </div>
+    </div>
+
+    <div class="col-lg-8">
+      <div class="card">
+        <div class="card-header">
+          <h3 class="card-title">Enrolled courses</h3>
+        </div>
+        <div class="table-responsive">
+          <table class="table table-vcenter card-table">
+            <thead>
+              <tr><th>Course</th><th>Name</th><th>Enrolled</th></tr>
+            </thead>
+            <tbody>
+              {% for enrollment in enrollments %}
+              <tr>
+                <td><a href="{% url 'courses:course_detail' enrollment.course.id %}">{{ enrollment.course.code }}</a></td>
+                <td>{{ enrollment.course.name }}</td>
+                <td class="text-muted">{{ enrollment.enrolled_at|date:"M j, Y" }}</td>
+              </tr>
+              {% empty %}
+              <tr><td colspan="3" class="text-muted">No enrollments in your courses.</td></tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <div class="card mt-3">
+        <div class="card-header">
+          <h3 class="card-title">Submissions</h3>
+        </div>
+        <div class="table-responsive">
+          <table class="table table-vcenter card-table">
+            <thead>
+              <tr><th>Assignment</th><th>Course</th><th>Version</th><th>Submitted</th><th>Grade</th><th></th></tr>
+            </thead>
+            <tbody>
+              {% for submission in submissions %}
+              <tr>
+                <td>{{ submission.assignment.title }}</td>
+                <td class="text-muted">{{ submission.assignment.course.code }}</td>
+                <td>v{{ submission.version }}</td>
+                <td class="text-muted">{{ submission.submitted_at|date:"M j, Y g:i A" }}</td>
+                <td>
+                  {% if submission.grade_id %}
+                    {{ submission.grade.score }} / {{ submission.assignment.max_score }}
+                    {% if submission.grade.is_published %}
+                    <span class="badge bg-success-lt text-success">Published</span>
+                    {% else %}
+                    <span class="badge bg-warning-lt text-warning">Draft</span>
+                    {% endif %}
+                  {% else %}
+                  <span class="text-muted">Not graded</span>
+                  {% endif %}
+                </td>
+                <td>
+                  <a href="{% url 'courses:submission_grade' submission.id %}" class="btn btn-sm btn-ghost-primary">
+                    {% if submission.grade_id %}Edit grade{% else %}Grade{% endif %}
+                  </a>
+                </td>
+              </tr>
+              {% empty %}
+              <tr><td colspan="6" class="text-muted">No submissions in your courses.</td></tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <div class="card mt-3">
+        <div class="card-header">
+          <h3 class="card-title">Project workspaces</h3>
+        </div>
+        <div class="table-responsive">
+          <table class="table table-vcenter card-table">
+            <thead>
+              <tr><th>Project</th><th>Course</th><th>Snapshots</th><th>Status</th><th></th></tr>
+            </thead>
+            <tbody>
+              {% for project in projects %}
+              <tr>
+                <td>{{ project.title|default:project.assignment.title }}</td>
+                <td class="text-muted">{{ project.assignment.course.code }}</td>
+                <td>{{ project.snapshot_count }}</td>
+                <td>
+                  {% if project.is_archived %}
+                  <span class="badge bg-secondary-lt text-secondary">Archived</span>
+                  {% else %}
+                  <span class="badge bg-success-lt text-success">Active</span>
+                  {% endif %}
+                </td>
+                <td>
+                  <a href="{% url 'projects:project_detail' project.id %}" class="btn btn-sm btn-outline-primary">
+                    Open project
+                  </a>
+                </td>
+              </tr>
+              {% empty %}
+              <tr><td colspan="5" class="text-muted">No project workspaces in your courses.</td></tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}

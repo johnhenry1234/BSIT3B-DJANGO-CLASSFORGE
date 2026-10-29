@@ -152,10 +152,102 @@ class Assignment(models.Model):
     )
     accepts_zip = models.BooleanField(default=True)
     accepts_pdf = models.BooleanField(default=True)
-    accepts_github = models.BooleanField(default=True)
     ai_auto_run = models.BooleanField(
         default=True,
         help_text='Queue an AI draft automatically once guidelines are configured.',
+    )
+
+    # --- Project platform configuration (migration 0005) -------------------
+    STATUS_DRAFT = 'draft'
+    STATUS_PUBLISHED = 'published'
+    STATUS_ARCHIVED = 'archived'
+    STATUS_CHOICES = [
+        (STATUS_DRAFT, 'Draft'),
+        (STATUS_PUBLISHED, 'Published'),
+        (STATUS_ARCHIVED, 'Archived'),
+    ]
+
+    AI_MODE_INSTRUCTOR_APPROVED = 'instructor_approved'
+    AI_MODE_AUTOMATIC = 'automatic'
+    AI_MODE_ADVISORY = 'advisory'
+    AI_MODE_CHOICES = [
+        (AI_MODE_INSTRUCTOR_APPROVED, 'Instructor-approved assessment'),
+        (AI_MODE_AUTOMATIC, 'Automatic assessment (score proposed, review still available)'),
+        (AI_MODE_ADVISORY, 'Advisory assessment (instructor grades)'),
+    ]
+
+    LATE_ACCEPT = 'accept'
+    LATE_PENALTY = 'penalty'
+    LATE_REJECT = 'reject'
+    LATE_POLICY_CHOICES = [
+        (LATE_ACCEPT, 'Accept late submissions'),
+        (LATE_PENALTY, 'Accept with a recorded penalty'),
+        (LATE_REJECT, 'Reject after the deadline'),
+    ]
+
+    status = models.CharField(
+        max_length=20, choices=STATUS_CHOICES, default=STATUS_PUBLISHED
+    )
+    published_at = models.DateTimeField(null=True, blank=True)
+    expected_outcomes = models.TextField(
+        blank=True,
+        default='',
+        help_text='What a successful project should demonstrate.',
+    )
+    accepted_formats = models.TextField(
+        blank=True,
+        default='',
+        help_text='One format per line, e.g. .zip, .sql, .sqlite, .db, .pdf, .md.',
+    )
+    required_directories = models.TextField(
+        blank=True,
+        default='',
+        help_text='One mandatory directory per line, e.g. src, docs.',
+    )
+    documentation_requirements = models.TextField(
+        blank=True,
+        default='',
+        help_text='Documentation the submission must contain.',
+    )
+    validation_rules = models.TextField(
+        blank=True,
+        default='',
+        help_text=(
+            'One deterministic rule per line. Supported: require_sql, '
+            'require_primary_keys, require_foreign_keys, require_readme, '
+            'sql_syntax, require_tests, naming_snake_case, forbid_secrets.'
+        ),
+    )
+    required_tests = models.TextField(
+        blank=True,
+        default='',
+        help_text='Tests the isolated runner should execute (one command per line).',
+    )
+    max_upload_mb = models.PositiveIntegerField(
+        default=25, validators=[MinValueValidator(1), MaxValueValidator(500)]
+    )
+    ai_grading_mode = models.CharField(
+        max_length=32,
+        choices=AI_MODE_CHOICES,
+        default=AI_MODE_INSTRUCTOR_APPROVED,
+        help_text='Default favours instructor review until grading is calibrated.',
+    )
+    manual_review_required = models.BooleanField(default=True)
+    late_policy = models.CharField(
+        max_length=16, choices=LATE_POLICY_CHOICES, default=LATE_ACCEPT
+    )
+    late_penalty_percent = models.DecimalField(
+        max_digits=5,
+        decimal_places=2,
+        default=0,
+        validators=[MinValueValidator(0), MaxValueValidator(100)],
+    )
+    allow_resubmission = models.BooleanField(default=True)
+    revision_deadline_days = models.PositiveIntegerField(default=7)
+    default_exclusions = models.TextField(
+        blank=True,
+        default='',
+        help_text='Extra ignore patterns applied to VS Code/API uploads.',
     )
 
     created_at = models.DateTimeField(auto_now_add=True)
@@ -181,6 +273,50 @@ class Assignment(models.Model):
         ]
 
     @property
+    def required_directories_list(self):
+        return [
+            line.strip().strip('/')
+            for line in (self.required_directories or '').splitlines()
+            if line.strip().strip('/')
+        ]
+
+    @property
+    def accepted_formats_list(self):
+        return [
+            line.strip().lower()
+            for line in (self.accepted_formats or '').splitlines()
+            if line.strip()
+        ]
+
+    @property
+    def validation_rules_list(self):
+        return [
+            line.strip().lower().replace('-', '_')
+            for line in (self.validation_rules or '').splitlines()
+            if line.strip()
+        ]
+
+    @property
+    def required_tests_list(self):
+        return [
+            line.strip()
+            for line in (self.required_tests or '').splitlines()
+            if line.strip()
+        ]
+
+    @property
+    def default_exclusions_list(self):
+        return [
+            line.strip()
+            for line in (self.default_exclusions or '').splitlines()
+            if line.strip()
+        ]
+
+    @property
+    def is_published(self):
+        return self.status == self.STATUS_PUBLISHED
+
+    @property
     def rubric_total_points(self):
         rubric = getattr(self, 'rubric', None)
         return rubric.total_points if rubric else Decimal('0')
@@ -196,8 +332,6 @@ class Assignment(models.Model):
             types.append('.zip')
         if self.accepts_pdf:
             types.append('.pdf')
-        if self.accepts_github:
-            types.append('GitHub URL')
         return types
 
 
@@ -221,7 +355,6 @@ class Submission(models.Model):
     file_attachment = models.FileField(
         upload_to='submissions/%Y/%m/', max_length=255, blank=True, null=True
     )
-    github_url = models.URLField(max_length=500, blank=True, default='')
     text_content = models.TextField(blank=True, null=True)
     submitted_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
@@ -249,10 +382,9 @@ class Submission(models.Model):
         super().clean()
         has_file = bool(self.file_attachment)
         has_text = bool((self.text_content or '').strip())
-        has_link = bool((self.github_url or '').strip())
-        if not (has_file or has_text or has_link):
+        if not (has_file or has_text):
             raise ValidationError(
-                'Provide a file attachment, a GitHub repository link, or text content.'
+                'Provide a file attachment or text content.'
             )
 
     def save(self, *args, **kwargs):
@@ -285,8 +417,6 @@ class Submission(models.Model):
 
     @property
     def submission_type(self):
-        if self.github_url:
-            return 'github'
         if self.file_attachment:
             name = (self.file_attachment.name or '').lower()
             if name.endswith('.zip'):
@@ -344,6 +474,34 @@ class RubricCriterion(models.Model):
     )
     position = models.PositiveIntegerField(default=0)
 
+    # --- Rich rubric builder fields (migration 0005) -----------------------
+    expected_evidence = models.TextField(
+        blank=True,
+        default='',
+        help_text='Evidence the assessor should look for (files, tables, behaviours).',
+    )
+    scoring_guidance = models.TextField(
+        blank=True,
+        default='',
+        help_text='How to award partial credit for this criterion.',
+    )
+    validation_rule = models.CharField(
+        max_length=64,
+        blank=True,
+        default='',
+        help_text='Optional deterministic rule key, e.g. require_primary_keys.',
+    )
+    ai_instructions = models.TextField(
+        blank=True,
+        default='',
+        help_text='Criterion-specific assessment instructions for the AI.',
+    )
+    feedback_requirements = models.TextField(
+        blank=True,
+        default='',
+        help_text='What the feedback for this criterion must include.',
+    )
+
     class Meta:
         db_table = 'rubric_criteria'
         ordering = ['position', 'id']
@@ -355,6 +513,58 @@ class RubricCriterion(models.Model):
 
     def __str__(self):
         return f'{self.name} ({self.max_points} pts)'
+
+
+class RubricVersion(models.Model):
+    """Immutable snapshot of a rubric at publication time.
+
+    Assessments reference this record so historical results stay explainable
+    after the instructor edits the rubric.
+    """
+
+    rubric = models.ForeignKey(
+        Rubric, related_name='versions', on_delete=models.CASCADE
+    )
+    assignment = models.ForeignKey(
+        Assignment, related_name='rubric_versions', on_delete=models.CASCADE
+    )
+    version = models.PositiveIntegerField(default=1)
+    snapshot = models.JSONField(default=dict, blank=True)
+    total_points = models.DecimalField(
+        max_digits=8, decimal_places=2, default=Decimal('0')
+    )
+    notes = models.TextField(blank=True, default='')
+    published_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        related_name='rubric_versions_published',
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+    )
+    published_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        db_table = 'rubric_versions'
+        ordering = ['-version']
+        constraints = [
+            models.UniqueConstraint(
+                fields=['rubric', 'version'],
+                name='uq_rubric_versions_rubric_version',
+            )
+        ]
+        indexes = [
+            models.Index(
+                fields=['assignment', '-version'],
+                name='idx_rubric_versions_assignment',
+            )
+        ]
+
+    def __str__(self):
+        return f'{self.rubric.title} v{self.version}'
+
+    @property
+    def criteria_snapshot(self):
+        return (self.snapshot or {}).get('criteria', [])
 
 
 class Grade(models.Model):

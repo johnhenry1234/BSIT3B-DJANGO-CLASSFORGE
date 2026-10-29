@@ -1,0 +1,224 @@
+{% extends "theme/base.html" %}
+{% block content %}
+<div class="container-xl">
+  <div class="page-header d-print-none" aria-label="Page header">
+    <div class="container-xl">
+      <div class="row align-items-center">
+        <div class="col">
+          <div class="page-pretitle">
+            <a href="{% url 'projects:project_detail' project.id %}" class="text-muted">{{ project.title|default:project.assignment.title }}</a>
+            · Snapshot v{{ snapshot.version }}
+          </div>
+          <h2 class="page-title mb-0">Snapshot v{{ snapshot.version }}</h2>
+          <div class="text-muted mt-1">
+            {{ snapshot.get_source_display }} · <code>{{ snapshot.branch }}</code>
+            · {{ snapshot.file_count }} file{{ snapshot.file_count|pluralize }} · {{ snapshot.total_bytes|filesizeformat }}
+            · {{ snapshot.created_at|date:"M j, Y g:i A" }}
+          </div>
+        </div>
+        <div class="col-auto ms-auto">
+          <div class="btn-list">
+            <a href="{% url 'projects:project_detail' project.id %}" class="btn btn-ghost-secondary">Back to project</a>
+            {% if previous %}
+            <a href="{% url 'projects:snapshot_compare' snapshot.id %}" class="btn btn-outline-secondary">
+              <i class="fas fa-code-compare me-2"></i> Compare with v{{ previous.version }}
+            </a>
+            {% endif %}
+            {% if is_owner or can_grade %}
+            <a href="{% url 'projects:pull_request_create' project.id %}" class="btn btn-outline-primary">Pull request</a>
+            {% endif %}
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+  <br>
+
+  {% for message in messages %}
+  <div class="alert {% if message.tags == 'error' %}alert-danger{% elif message.tags == 'warning' %}alert-warning{% elif message.tags == 'success' %}alert-success{% else %}alert-info{% endif %} alert-dismissible" role="alert">
+    <div>{{ message }}</div>
+    <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+  </div>
+  {% endfor %}
+
+  {% if snapshot.validation.issues %}
+  <div class="alert alert-warning" role="alert">
+    <h4 class="alert-heading">Archive warnings</h4>
+    <ul class="mb-0">
+      {% for issue in snapshot.validation.issues %}
+      <li><span class="badge bg-warning-lt text-warning">{{ issue.severity }}</span> {{ issue.message }}</li>
+      {% endfor %}
+    </ul>
+  </div>
+  {% endif %}
+
+  <div class="row row-cards">
+    <div class="col-lg-7">
+      <div class="card">
+        <div class="card-header d-flex align-items-center">
+          <div class="card-title">Manifest ({{ manifest|length }} files)</div>
+          <div class="ms-auto text-muted small">
+            ZIP SHA-256 <code title="{{ snapshot.checksum }}">{{ snapshot.short_checksum }}</code>
+          </div>
+        </div>
+        <div class="accordion" id="manifest-accordion">
+          {% for group, items in grouped.items %}
+          <div class="accordion-item">
+            <h2 class="accordion-header" id="heading-{{ forloop.counter }}">
+              <button class="accordion-button {% if not forloop.first %}collapsed{% endif %}" type="button" data-bs-toggle="collapse" data-bs-target="#group-{{ forloop.counter }}" aria-expanded="{% if forloop.first %}true{% else %}false{% endif %}">
+                <span class="fw-semibold">{{ group }}</span>
+                <span class="badge bg-secondary-lt text-secondary ms-2">{{ items|length }}</span>
+              </button>
+            </h2>
+            <div id="group-{{ forloop.counter }}" class="accordion-collapse collapse {% if forloop.first %}show{% endif %}" data-bs-parent="#manifest-accordion">
+              <div class="accordion-body p-0">
+                <div class="table-responsive">
+                  <table class="table table-sm table-vcenter card-table mb-0">
+                    <tbody>
+                    {% for item in items %}
+                    <tr>
+                      <td style="max-width: 360px; white-space: normal;"><code>{{ item.path }}</code></td>
+                      <td class="text-muted text-nowrap">{{ item.size|filesizeformat }}</td>
+                    </tr>
+                    {% endfor %}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            </div>
+          </div>
+          {% empty %}
+          <div class="card-body text-muted">The manifest is empty.</div>
+          {% endfor %}
+        </div>
+      </div>
+
+      <div class="card mt-3">
+        <div class="card-header"><div class="card-title">Snapshot metadata</div></div>
+        <div class="card-body">
+          <dl class="row mb-0">
+            <dt class="col-sm-4 text-muted">Source</dt><dd class="col-sm-8">{{ snapshot.get_source_display }}</dd>
+            <dt class="col-sm-4 text-muted">Branch</dt><dd class="col-sm-8"><code>{{ snapshot.branch }}</code></dd>
+            <dt class="col-sm-4 text-muted">Commit SHA</dt>
+            <dd class="col-sm-8">{% if snapshot.commit_sha %}<code>{{ snapshot.commit_sha }}</code>{% else %}<span class="text-muted">Git mirror unavailable</span>{% endif %}</dd>
+            <dt class="col-sm-4 text-muted">Base commit</dt><dd class="col-sm-8">{% if snapshot.base_commit_sha %}<code>{{ snapshot.base_commit_sha }}</code>{% else %}<span class="text-muted">—</span>{% endif %}</dd>
+            <dt class="col-sm-4 text-muted">Created by</dt><dd class="col-sm-8">{% if snapshot.created_by %}{{ snapshot.created_by.get_full_name|default:snapshot.created_by.username }}{% else %}System{% endif %}</dd>
+            <dt class="col-sm-4 text-muted">Linked submission</dt>
+            <dd class="col-sm-8">{% if snapshot.submission_id %}#{{ snapshot.submission_id }} (v{{ snapshot.submission.version }}){% else %}<span class="text-muted">Not linked</span>{% endif %}</dd>
+            {% if snapshot.note %}<dt class="col-sm-4 text-muted">Note</dt><dd class="col-sm-8">{{ snapshot.note }}</dd>{% endif %}
+          </dl>
+        </div>
+      </div>
+    </div>
+
+    <div class="col-lg-5">
+      <div class="card">
+        <div class="card-header d-flex align-items-center">
+          <div class="card-title">Assessment draft</div>
+          {% if can_grade %}<a href="{% url 'projects:assessment_queue' %}" class="ms-auto btn btn-sm btn-ghost-secondary">Queue</a>{% endif %}
+        </div>
+        <div class="card-body">
+          {% if assessment %}
+            <div class="d-flex align-items-center justify-content-between mb-2">
+              <span class="badge {% if assessment.engine == 'ai' %}bg-purple-lt text-purple{% else %}bg-azure-lt text-azure{% endif %}">{{ assessment.get_engine_display }}</span>
+              {% if assessment.status == 'completed' %}<span class="badge bg-success-lt text-success">Completed</span>
+              {% elif assessment.status == 'failed' %}<span class="badge bg-danger-lt text-danger">Failed</span>
+              {% elif assessment.status == 'running' %}<span class="badge bg-info-lt text-info">Running</span>
+              {% else %}<span class="badge bg-warning-lt text-warning">Queued</span>{% endif %}
+            </div>
+            <div class="h1 mb-1">
+              {% if assessment.instructor_score is not None %}{{ assessment.instructor_score }}{% elif assessment.overall_score is not None %}{{ assessment.overall_score }}{% else %}—{% endif %}
+              <span class="text-muted fs-3">/ {{ assessment.max_score }}</span>
+            </div>
+            <div class="text-muted small mb-2">{{ assessment.summary }}</div>
+            {% if assessment.status == 'completed' %}
+              <div class="mb-2">
+                {% if assessment.review_status == 'pending' %}<span class="badge bg-warning-lt text-warning">Awaiting instructor review</span>
+                {% elif assessment.review_status == 'approved' %}<span class="badge bg-success-lt text-success">Approved</span>
+                {% elif assessment.review_status == 'overridden' %}<span class="badge bg-azure-lt text-azure">Overridden</span>
+                {% else %}<span class="badge bg-secondary-lt text-secondary">Rejected</span>{% endif %}
+              </div>
+              {% if assessment.criteria.exists %}
+              <div class="table-responsive mb-2">
+                <table class="table table-sm card-table">
+                  <thead><tr><th>Criterion</th><th class="text-end">Points</th></tr></thead>
+                  <tbody>
+                  {% for criterion in assessment.criteria.all %}
+                  <tr>
+                    <td>{{ criterion.criterion_name }}<div class="small text-muted">{{ criterion.comment|truncatechars:100 }}</div></td>
+                    <td class="text-end text-nowrap">{{ criterion.points }} / {{ criterion.max_points }}</td>
+                  </tr>
+                  {% endfor %}
+                  </tbody>
+                </table>
+              </div>
+              {% endif %}
+              <div class="text-muted small" style="white-space: pre-wrap;">{{ assessment.feedback|truncatechars:900 }}</div>
+              <div class="btn-list mt-3">
+                {% if can_grade %}
+                <a href="{% url 'projects:assessment_review' assessment.id %}" class="btn btn-primary btn-sm">Review assessment</a>
+                {% endif %}
+              </div>
+            {% elif assessment.status == 'failed' %}
+              <div class="alert alert-danger py-2 small mb-2">{{ assessment.error }}</div>
+              {% if can_grade %}
+              <form method="POST" action="{% url 'projects:assessment_retry' assessment.id %}">
+                {% csrf_token %}
+                <button class="btn btn-outline-danger btn-sm">Retry assessment</button>
+              </form>
+              {% endif %}
+            {% endif %}
+          {% else %}
+            <p class="text-muted">No assessment has been requested for this snapshot.</p>
+            {% if is_owner or can_grade %}
+            <form method="POST" action="{% url 'projects:snapshot_assess' snapshot.id %}">
+              {% csrf_token %}
+              <button class="btn btn-primary w-100"><i class="fas fa-wand-magic-sparkles me-2"></i> Request assessment</button>
+            </form>
+            {% endif %}
+          {% endif %}
+        </div>
+      </div>
+
+      {% if assessment.status == 'completed' and assessment.checks %}
+      <div class="card mt-3">
+        <div class="card-header"><div class="card-title">Deterministic checks</div></div>
+        <div class="list-group list-group-flush">
+          {% for check in assessment.checks %}
+          <div class="list-group-item">
+            <div class="d-flex align-items-center justify-content-between">
+              <span class="fw-semibold">{{ check.label }}</span>
+              {% if check.status == 'pass' %}<span class="badge bg-success-lt text-success">Pass</span>
+              {% elif check.status == 'fail' %}<span class="badge bg-danger-lt text-danger">Fail</span>
+              {% elif check.status == 'skipped' %}<span class="badge bg-secondary-lt text-secondary">Not run</span>
+              {% else %}<span class="badge bg-warning-lt text-warning">Warning</span>{% endif %}
+            </div>
+            <div class="text-muted small">{{ check.message }}</div>
+            {% if check.evidence %}<div class="small text-muted"><code>{{ check.evidence|truncatechars:180 }}</code></div>{% endif %}
+          </div>
+          {% endfor %}
+        </div>
+      </div>
+      {% endif %}
+
+      {% if assessment.status == 'completed' and assessment.evidence %}
+      <div class="card mt-3">
+        <div class="card-header"><div class="card-title">Evidence</div></div>
+        <div class="card-body">
+          <ul class="mb-0 small">
+            {% for item in assessment.evidence %}
+            <li>
+              <span class="badge bg-secondary-lt text-secondary">{{ item.type }}</span>
+              {% firstof item.path item.note "-" as evidence_text %}
+              {{ evidence_text|truncatechars:140 }}
+              {% if item.severity %}<span class="badge bg-warning-lt text-warning">{{ item.severity }}</span>{% endif %}
+            </li>
+            {% endfor %}
+          </ul>
+        </div>
+      </div>
+      {% endif %}
+    </div>
+  </div>
+</div>
+{% endblock %}

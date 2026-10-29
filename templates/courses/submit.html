@@ -29,18 +29,11 @@
             {% if form.file_attachment.help_text %}<small class="form-hint">{{ form.file_attachment.help_text }}</small>{% endif %}
           </div>
           {% endif %}
-          {% if assignment.accepts_github %}
-          <div class="col-12">
-            <label class="form-label">GitHub Repository Link</label>
-            {{ form.github_url }}
-            {% if form.github_url.errors %}<div class="text-danger small">{{ form.github_url.errors }}</div>{% endif %}
-          </div>
-          {% endif %}
           <div class="col-12">
             <label class="form-label">Text Content / Notes</label>
             {{ form.text_content }}
             {% if form.text_content.errors %}<div class="text-danger small">{{ form.text_content.errors }}</div>{% endif %}
-            <small class="form-hint">Provide a file, GitHub link, text, or any combination.</small>
+            <small class="form-hint">Provide a file, text, or any combination.</small>
           </div>
         </div>
       </div>

@@ -1,0 +1,242 @@
+{% extends "theme/base.html" %}
+{% block content %}
+<div class="container-xl">
+  <div class="page-header d-print-none" aria-label="Page header">
+    <div class="container-xl">
+      <div class="row align-items-center">
+        <div class="col">
+          <div class="page-pretitle">
+            <a href="{% url 'projects:project_detail' project.id %}" class="text-muted">{{ project.title|default:project.assignment.title }}</a>
+            · Snapshot v{{ assessment.snapshot.version }}
+          </div>
+          <h2 class="page-title mb-0">Review assessment</h2>
+          <div class="text-muted mt-1">
+            {{ project.student.get_full_name|default:project.student.username }} ·
+            {{ project.assignment.title }} ·
+            {% if assessment.engine == 'ai' %}AI model: {{ assessment.model_name }}{% else %}Engine: {{ assessment.model_name }}{% endif %}
+          </div>
+        </div>
+        <div class="col-auto ms-auto">
+          <div class="btn-list">
+            <a href="{% url 'projects:assessment_queue' %}" class="btn btn-ghost-secondary">Queue</a>
+            <a href="{% url 'projects:snapshot_detail' assessment.snapshot.id %}" class="btn btn-outline-secondary">Snapshot</a>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+  <br>
+
+  {% for message in messages %}
+  <div class="alert {% if message.tags == 'error' %}alert-danger{% elif message.tags == 'warning' %}alert-warning{% elif message.tags == 'success' %}alert-success{% else %}alert-info{% endif %} alert-dismissible" role="alert">
+    <div>{{ message }}</div>
+    <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+  </div>
+  {% endfor %}
+
+  <div class="alert alert-info" role="alert">
+    <div class="d-flex">
+      <div><i class="fas fa-circle-info alert-icon" aria-hidden="true"></i></div>
+      <div>
+        <h4 class="alert-heading">This is a draft, not a final grade</h4>
+        <div class="alert-description">
+          Applying an assessment creates an <strong>unpublished</strong> grade. Publish it from the grading page when you are ready.
+          {% if assessment.requires_review %}Instructor review is required by the assignment settings.{% endif %}
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="row row-cards">
+    <div class="col-lg-7">
+      <div class="card">
+        <div class="card-header d-flex align-items-center">
+          <div class="card-title">Draft result</div>
+          <div class="ms-auto d-flex gap-2">
+            {% if assessment.status == 'completed' %}<span class="badge bg-success-lt text-success">Completed</span>
+            {% elif assessment.status == 'failed' %}<span class="badge bg-danger-lt text-danger">Failed</span>
+            {% elif assessment.status == 'running' %}<span class="badge bg-info-lt text-info">Running</span>
+            {% else %}<span class="badge bg-warning-lt text-warning">Queued</span>{% endif %}
+            <span class="badge bg-secondary-lt text-secondary">{{ assessment.attempts }} attempt{{ assessment.attempts|pluralize }}</span>
+          </div>
+        </div>
+        <div class="card-body">
+          <div class="row align-items-center mb-3">
+            <div class="col">
+              <div class="text-muted">Proposed total</div>
+              <div class="h1 mb-0">
+                {% if assessment.overall_score is not None %}{{ assessment.overall_score }}{% else %}—{% endif %}
+                <span class="text-muted fs-3">/ {{ assessment.max_score }}</span>
+              </div>
+            </div>
+            <div class="col-auto">
+              <div class="text-muted">Review status</div>
+              {% if assessment.review_status == 'pending' %}<span class="badge bg-warning-lt text-warning">Pending</span>
+              {% elif assessment.review_status == 'approved' %}<span class="badge bg-success-lt text-success">Approved</span>
+              {% elif assessment.review_status == 'overridden' %}<span class="badge bg-azure-lt text-azure">Overridden</span>
+              {% else %}<span class="badge bg-secondary-lt text-secondary">Rejected</span>{% endif %}
+              {% if assessment.applied_grade_id %}
+              <div class="small text-muted mt-1">Grade #{{ assessment.applied_grade_id }} linked</div>
+              {% endif %}
+            </div>
+          </div>
+
+          {% if assessment.summary %}<p class="text-muted">{{ assessment.summary }}</p>{% endif %}
+
+          {% if assessment.error %}
+          <div class="alert alert-danger" role="alert"><strong>Error:</strong> {{ assessment.error }}</div>
+          {% endif %}
+
+          {% if assessment.status == 'failed' or assessment.status == 'queued' %}
+          <form method="POST" action="{% url 'projects:assessment_retry' assessment.id %}" class="mb-3">
+            {% csrf_token %}
+            <button class="btn btn-outline-danger" {% if assessment.status == 'queued' %}disabled{% endif %}>
+              <i class="fas fa-rotate-right me-2"></i> Retry assessment
+            </button>
+          </form>
+          {% endif %}
+
+          {% if assessment.criteria.exists %}
+          <h3>Rubric detail</h3>
+          <div class="table-responsive">
+            <table class="table table-vcenter card-table">
+              <thead><tr><th>Criterion</th><th class="text-end">AI / inspector</th><th class="text-end">Max</th><th class="text-end">Instructor</th></tr></thead>
+              <tbody>
+              {% for criterion in criteria %}
+              <tr>
+                <td>
+                  <div class="fw-semibold">{{ criterion.criterion_name }}</div>
+                  <div class="text-muted small">{{ criterion.comment }}</div>
+                  {% if criterion.evidence %}<div class="small"><code>{{ criterion.evidence|truncatechars:140 }}</code></div>{% endif %}
+                  <div class="small text-muted">Confidence: {{ criterion.confidence }}</div>
+                </td>
+                <td class="text-end">{{ criterion.ai_points }}</td>
+                <td class="text-end text-muted">{{ criterion.max_points }}</td>
+                <td class="text-end" style="min-width: 110px;">
+                  <input type="number" step="0.01" min="0" max="{{ criterion.max_points }}"
+                         class="form-control form-control-sm text-end"
+                         name="criterion_{{ criterion.id }}"
+                         value="{{ criterion.instructor_points|default_if_none:'' }}"
+                         form="review-form" aria-label="Instructor points for {{ criterion.criterion_name }}">
+                </td>
+              </tr>
+              {% endfor %}
+              </tbody>
+            </table>
+          </div>
+          {% endif %}
+
+          <h3 class="mt-4">Feedback draft</h3>
+          <div class="text-muted" style="white-space: pre-wrap;">{{ assessment.feedback|linebreaksbr }}</div>
+        </div>
+      </div>
+
+      {% if assessment.checks %}
+      <div class="card mt-3">
+        <div class="card-header"><div class="card-title">Deterministic checks</div></div>
+        <div class="list-group list-group-flush">
+          {% for check in assessment.checks %}
+          <div class="list-group-item">
+            <div class="d-flex align-items-center justify-content-between">
+              <span class="fw-semibold">{{ check.label }}</span>
+              {% if check.status == 'pass' %}<span class="badge bg-success-lt text-success">Pass</span>
+              {% elif check.status == 'fail' %}<span class="badge bg-danger-lt text-danger">Fail</span>
+              {% elif check.status == 'skipped' %}<span class="badge bg-secondary-lt text-secondary">Not run</span>
+              {% else %}<span class="badge bg-warning-lt text-warning">Warning</span>{% endif %}
+            </div>
+            <div class="text-muted small">{{ check.message }}</div>
+            {% if check.evidence %}<div class="small text-muted"><code>{{ check.evidence|truncatechars:240 }}</code></div>{% endif %}
+          </div>
+          {% endfor %}
+        </div>
+      </div>
+      {% endif %}
+    </div>
+
+    <div class="col-lg-5">
+      <div class="card">
+        <div class="card-header"><div class="card-title">Instructor review</div></div>
+        <form method="POST" id="review-form">
+          {% csrf_token %}
+          <div class="card-body">
+            {% if form.non_field_errors %}<div class="alert alert-danger">{{ form.non_field_errors }}</div>{% endif %}
+            <div class="mb-3">
+              <label class="form-label">Decision</label>
+              {{ form.action }}
+              {% if form.action.errors %}<div class="text-danger small">{{ form.action.errors }}</div>{% endif %}
+            </div>
+            <div class="mb-3">
+              <label class="form-label">Overall instructor score</label>
+              {{ form.instructor_score }}
+              {% if form.instructor_score.errors %}<div class="text-danger small">{{ form.instructor_score.errors }}</div>{% endif %}
+              <small class="form-hint">Leave blank to keep the draft total (or the sum of criterion overrides).</small>
+            </div>
+            <div class="mb-0">
+              <label class="form-label">Instructor feedback</label>
+              {{ form.instructor_feedback }}
+              {% if form.instructor_feedback.errors %}<div class="text-danger small">{{ form.instructor_feedback.errors }}</div>{% endif %}
+              <small class="form-hint">This feedback is appended to the student-facing grade feedback.</small>
+            </div>
+          </div>
+          <div class="card-footer d-flex gap-2">
+            <button type="submit" class="btn btn-primary">Save review</button>
+            <small class="text-muted ms-auto align-self-center">Choose “Reject the draft” above to reject.</small>
+          </div>
+        </form>
+      </div>
+
+      <div class="card mt-3">
+        <div class="card-header"><div class="card-title">Apply to a grade</div></div>
+        <div class="card-body">
+          <p class="text-muted small">
+            Applies the reviewed score and rubric to an <strong>unpublished</strong> grade. You can edit and publish it from the grading page.
+          </p>
+          {% if assessment.status == 'completed' %}
+          <form method="POST" class="mb-2">
+            {% csrf_token %}
+            <input type="hidden" name="action" value="apply">
+            <button class="btn btn-success w-100">
+              <i class="fas fa-file-circle-check me-2"></i> Apply as draft grade
+            </button>
+          </form>
+          {% else %}
+          <button class="btn btn-secondary w-100" disabled>Assessment is not completed</button>
+          {% endif %}
+          {% if can_publish_grade and assessment.snapshot.submission_id %}
+          <a href="{% url 'courses:submission_grade' assessment.snapshot.submission_id %}" class="btn btn-outline-primary w-100 mt-2">
+            Open grade editor
+          </a>
+          {% endif %}
+        </div>
+      </div>
+
+      <div class="card mt-3">
+        <div class="card-header"><div class="card-title">Review audit</div></div>
+        <div class="card-body">
+          <dl class="row mb-0">
+            <dt class="col-5 text-muted">Reviewer</dt><dd class="col-7">{% if assessment.reviewer %}{{ assessment.reviewer.get_full_name|default:assessment.reviewer.username }}{% else %}—{% endif %}</dd>
+            <dt class="col-5 text-muted">Reviewed at</dt><dd class="col-7">{{ assessment.reviewed_at|date:"M j, Y g:i A"|default:"—" }}</dd>
+            <dt class="col-5 text-muted">Requested by</dt><dd class="col-7">{% if assessment.requested_by %}{{ assessment.requested_by.get_full_name|default:assessment.requested_by.username }}{% else %}—{% endif %}</dd>
+            <dt class="col-5 text-muted">Created</dt><dd class="col-7">{{ assessment.created_at|date:"M j, Y g:i A" }}</dd>
+            <dt class="col-5 text-muted">Completed</dt><dd class="col-7">{{ assessment.completed_at|date:"M j, Y g:i A"|default:"—" }}</dd>
+            <dt class="col-5 text-muted">Rubric version</dt>
+            <dd class="col-7">{% if assessment.rubric_version %}<a href="{% url 'courses:assignment_rubric' project.assignment.id %}">v{{ assessment.rubric_version.version }}</a>{% else %}<span class="text-muted">Working rubric</span>{% endif %}</dd>
+          </dl>
+        </div>
+      </div>
+
+      {% if assessment.validation.counts %}
+      <div class="card mt-3">
+        <div class="card-header"><div class="card-title">Check counts</div></div>
+        <div class="card-body d-flex flex-wrap gap-2">
+          <span class="badge bg-success-lt text-success">Pass {{ assessment.validation.counts.pass|default:0 }}</span>
+          <span class="badge bg-warning-lt text-warning">Warn {{ assessment.validation.counts.warn|default:0 }}</span>
+          <span class="badge bg-danger-lt text-danger">Fail {{ assessment.validation.counts.fail|default:0 }}</span>
+          <span class="badge bg-secondary-lt text-secondary">Not run {{ assessment.validation.counts.skipped|default:0 }}</span>
+        </div>
+      </div>
+      {% endif %}
+    </div>
+  </div>
+</div>
+{% endblock %}

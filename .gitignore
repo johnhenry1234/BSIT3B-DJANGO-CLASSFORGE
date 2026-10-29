@@ -1,0 +1,26 @@
+# Local environment (never commit real secrets)
+.env
+.env.*
+!.env.example
+
+# Python
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+htmlcov/
+.venv/
+.venv.broken/
+
+# Django runtime data
+db.sqlite3
+media/project_snapshots/
+staticfiles/
+*.log
+
+# VS Code extension build output
+vscode-extension/node_modules/
+vscode-extension/out/
+vscode-extension/*.vsix

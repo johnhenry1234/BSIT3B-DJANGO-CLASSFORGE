@@ -13,7 +13,6 @@ import os
 import re
 import zipfile
 from decimal import Decimal, ROUND_HALF_UP
-from urllib.parse import urlparse
 
 MAX_FILES = 500
 MAX_TOTAL_UNCOMPRESSED = 50 * 1024 * 1024  # 50 MB
@@ -148,31 +147,6 @@ def _pdf_report(path):
             )
         )
     return {'pages': pages, 'text': text[:8000], 'issues': issues}
-
-
-def _github_report(url):
-    issues = []
-    parsed = urlparse(url or '')
-    host = (parsed.netloc or '').lower().split(':')[0]
-    path_parts = [p for p in (parsed.path or '').split('/') if p]
-    valid = host in ('github.com', 'www.github.com') and len(path_parts) >= 2
-    if not valid:
-        issues.append(
-            _flag(
-                'structural_discrepancy',
-                'critical',
-                'The submitted GitHub URL is not a repository link (expected github.com/owner/repo).',
-                url,
-            )
-        )
-    return {
-        'url': url,
-        'host': host,
-        'owner': path_parts[0] if path_parts else '',
-        'repository': path_parts[1] if len(path_parts) > 1 else '',
-        'valid': valid,
-        'issues': issues,
-    }
 
 
 def _inspect_zip(path):
@@ -323,19 +297,10 @@ def inspect_submission(submission):
         'doc_file_count': 0,
         'has_readme': False,
         'pdf_pages': 0,
-        'github': None,
         'excerpt': '',
         'issues': [],
         'notes': [],
     }
-
-    if submission.github_url:
-        github = _github_report(submission.github_url)
-        report['github'] = github
-        report['issues'].extend(github['issues'])
-        report['notes'].append(
-            'GitHub repository content is not cloned in this phase; inspection is limited to the submitted metadata.'
-        )
 
     if submission.file_attachment:
         try:
@@ -427,7 +392,7 @@ def inspect_submission(submission):
 
     category = assignment.category
     if category == assignment.CATEGORY_CODE_PROJECT:
-        if not submission.github_url and report['source_file_count'] == 0:
+        if report['source_file_count'] == 0:
             report['issues'].append(
                 _flag(
                     'missing_requirement',
@@ -472,7 +437,7 @@ def inspect_submission(submission):
             _flag(
                 'structural_discrepancy',
                 'info',
-                'The submission consists of text only; no project archive or link was provided.',
+                'The submission consists of text only; no project archive was provided.',
             )
         )
 
@@ -507,7 +472,6 @@ def local_suggestions(report, assignment):
 
     has_code = report.get('source_file_count', 0) > 0
     has_docs = report.get('doc_file_count', 0) > 0 or report.get('file_type') == '.pdf'
-    github = report.get('github') or {}
 
     rubric = getattr(assignment, 'rubric', None)
     suggested_criteria = []
@@ -520,7 +484,7 @@ def local_suggestions(report, assignment):
             if any(word in name for word in ('doc', 'readme', 'report', 'write')):
                 criterion_factor += Decimal('0.03') if has_docs or report.get('has_readme') else Decimal('-0.08')
             if any(word in name for word in ('code', 'function', 'implement', 'working', 'program')):
-                criterion_factor += Decimal('0.03') if has_code or github.get('valid') else Decimal('-0.10')
+                criterion_factor += Decimal('0.03') if has_code else Decimal('-0.10')
             if any(word in name for word in ('requirement', 'feature', 'complete')):
                 criterion_factor -= Decimal(missing) * Decimal('0.03')
             criterion_factor = max(Decimal('0.25'), min(criterion_factor, Decimal('1.0')))
@@ -557,12 +521,6 @@ def local_suggestions(report, assignment):
         )
     if report.get('pdf_pages'):
         feedback_lines.append(f'PDF pages detected: {report["pdf_pages"]}.')
-    if report.get('github'):
-        github = report['github']
-        feedback_lines.append(
-            f'GitHub repository: {github.get("owner")}/{github.get("repository")} '
-            f'({"valid" if github.get("valid") else "invalid"} link).'
-        )
 
     if issues:
         feedback_lines.append('')
@@ -596,8 +554,8 @@ def _criterion_comment(criterion, report):
             return 'Documentation files were detected in the submission.'
         return 'No documentation file was detected; verify before awarding full points.'
     if any(word in name for word in ('code', 'function', 'implement', 'working')):
-        if report.get('source_file_count') or (report.get('github') or {}).get('valid'):
-            return 'Source code or a valid repository link was detected.'
+        if report.get('source_file_count'):
+            return 'Source code was detected in the submission.'
         return 'No source code was detected; verify manually.'
     if report.get('issues'):
         return 'Automated inspection found items to verify: ' + report['issues'][0]['message']
@@ -645,7 +603,6 @@ Files: {', '.join(report.get('files', [])[:80]) or 'none'}
 Source files: {report.get('source_file_count', 0)}
 Documentation files: {report.get('doc_file_count', 0)}
 PDF pages: {report.get('pdf_pages', 0)}
-GitHub: {report.get('github') or 'none'}
 Findings:
 {chr(10).join(f'- [{issue["severity"]}/{issue["kind"]}] {issue["message"]}' for issue in report.get('issues', [])) or '- none detected'}
 

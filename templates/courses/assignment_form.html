@@ -49,9 +49,8 @@
             <div class="card">
               <div class="card-header"><div class="card-title">Submission Settings</div></div>
               <div class="card-body row g-3">
-                <div class="col-md-4"><div class="form-check">{{ form.accepts_zip }} <label class="form-check-label">Accept .zip</label></div></div>
-                <div class="col-md-4"><div class="form-check">{{ form.accepts_pdf }} <label class="form-check-label">Accept .pdf</label></div></div>
-                <div class="col-md-4"><div class="form-check">{{ form.accepts_github }} <label class="form-check-label">Accept GitHub URL</label></div></div>
+                <div class="col-md-6"><div class="form-check">{{ form.accepts_zip }} <label class="form-check-label">Accept .zip</label></div></div>
+                <div class="col-md-6"><div class="form-check">{{ form.accepts_pdf }} <label class="form-check-label">Accept .pdf</label></div></div>
               </div>
             </div>
           </div>
@@ -59,6 +58,62 @@
             <label class="form-label">AI Guidelines (for Auto-Grader / Inspector)</label>
             {{ form.guidelines }}
             {% if form.guidelines.errors %}<div class="text-danger small">{{ form.guidelines.errors }}</div>{% endif %}
+          </div>
+          <div class="col-12">
+            <div class="card">
+              <div class="card-header"><div class="card-title">Project &amp; assessment settings</div></div>
+              <div class="card-body row g-3">
+                <div class="col-md-4">
+                  <label class="form-label">Status</label>{{ form.status }}
+                  {% if form.status.errors %}<div class="text-danger small">{{ form.status.errors }}</div>{% endif %}
+                  <small class="form-hint">Students can submit only when the assignment is published.</small>
+                </div>
+                <div class="col-md-4">
+                  <label class="form-label">Grading mode</label>{{ form.ai_grading_mode }}
+                  {% if form.ai_grading_mode.errors %}<div class="text-danger small">{{ form.ai_grading_mode.errors }}</div>{% endif %}
+                </div>
+                <div class="col-md-4">
+                  <label class="form-label">Max upload (MB)</label>{{ form.max_upload_mb }}
+                  {% if form.max_upload_mb.errors %}<div class="text-danger small">{{ form.max_upload_mb.errors }}</div>{% endif %}
+                </div>
+                <div class="col-12">
+                  <label class="form-label">Expected outcomes</label>{{ form.expected_outcomes }}
+                  {% if form.expected_outcomes.errors %}<div class="text-danger small">{{ form.expected_outcomes.errors }}</div>{% endif %}
+                </div>
+                <div class="col-md-6">
+                  <label class="form-label">Accepted formats (one per line)</label>{{ form.accepted_formats }}
+                  <small class="form-hint">e.g. .zip, .sql, .sqlite, .pdf, .md</small>
+                </div>
+                <div class="col-md-6">
+                  <label class="form-label">Required directories (one per line)</label>{{ form.required_directories }}
+                </div>
+                <div class="col-md-6">
+                  <label class="form-label">Documentation requirements</label>{{ form.documentation_requirements }}
+                </div>
+                <div class="col-md-6">
+                  <label class="form-label">Validation rules (one per line)</label>{{ form.validation_rules }}
+                  <small class="form-hint">require_sql, require_primary_keys, require_foreign_keys, require_readme, require_erd, require_tests, naming_snake_case, forbid_secrets</small>
+                </div>
+                <div class="col-md-6">
+                  <label class="form-label">Required test commands (one per line)</label>{{ form.required_tests }}
+                  <small class="form-hint">Reported as “not run” unless an isolated test runner is configured.</small>
+                </div>
+                <div class="col-md-6">
+                  <label class="form-label">Default .classforgeignore patterns</label>{{ form.default_exclusions }}
+                </div>
+                <div class="col-md-4">
+                  <label class="form-label">Late policy</label>{{ form.late_policy }}
+                </div>
+                <div class="col-md-4">
+                  <label class="form-label">Late penalty (%)</label>{{ form.late_penalty_percent }}
+                </div>
+                <div class="col-md-4">
+                  <label class="form-label">Revision deadline (days)</label>{{ form.revision_deadline_days }}
+                </div>
+                <div class="col-md-6"><div class="form-check">{{ form.manual_review_required }} <label class="form-check-label">Instructor review required before applying an assessment</label></div></div>
+                <div class="col-md-6"><div class="form-check">{{ form.allow_resubmission }} <label class="form-check-label">Allow resubmission / revision branches</label></div></div>
+              </div>
+            </div>
           </div>
           <div class="col-12">
             <label class="form-label">Mandatory Files (one per line)</label>

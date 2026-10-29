@@ -61,6 +61,34 @@
           </a>
         </li>
 
+        <li class="nav-item">
+          <a class="nav-link {% if request.resolver_match.app_name == 'projects' and request.resolver_match.url_name == 'project_list' %}active{% endif %}" href="{% url 'projects:project_list' %}">
+            <span class="nav-link-icon d-md-none d-lg-inline-block">
+              <i class="nav-icon fas fa-folder-tree"></i>
+            </span>
+            <span class="nav-link-title">Projects</span>
+          </a>
+        </li>
+
+        <li class="nav-item">
+          <a class="nav-link {% if request.resolver_match.url_name == 'assessment_queue' or request.resolver_match.url_name == 'assessment_review' %}active{% endif %}" href="{% url 'projects:assessment_queue' %}">
+            <span class="nav-link-icon d-md-none d-lg-inline-block">
+              <i class="nav-icon fas fa-clipboard-check"></i>
+            </span>
+            <span class="nav-link-title">Assessments</span>
+          </a>
+        </li>
+
+        <li class="nav-item">
+          <a class="nav-link {% if request.resolver_match.url_name == 'notification_list' %}active{% endif %}" href="{% url 'projects:notification_list' %}">
+            <span class="nav-link-icon d-md-none d-lg-inline-block">
+              <i class="nav-icon fas fa-bell"></i>
+            </span>
+            <span class="nav-link-title">Notifications</span>
+            {% if unread_notifications %}<span class="badge bg-danger text-white ms-auto">{{ unread_notifications }}</span>{% endif %}
+          </a>
+        </li>
+
         {% if can_grade %}
         <li class="nav-item">
           <a class="nav-link {% if request.resolver_match.url_name == 'grading_queue' %}active{% endif %}" href="{% url 'courses:grading_queue' %}">
@@ -122,6 +150,14 @@
         {% endif %}
 
         {% if user.is_authenticated %}
+        <li class="nav-item">
+          <a class="nav-link {% if request.resolver_match.url_name == 'token_manage' %}active{% endif %}" href="{% url 'projects:token_manage' %}">
+            <span class="nav-link-icon d-md-none d-lg-inline-block">
+              <i class="nav-icon fas fa-key"></i>
+            </span>
+            <span class="nav-link-title">API Tokens</span>
+          </a>
+        </li>
         <li class="nav-item d-lg-none">
           <a class="nav-link" href="{% url 'logout' %}">
             <span class="nav-link-icon d-md-none d-lg-inline-block">

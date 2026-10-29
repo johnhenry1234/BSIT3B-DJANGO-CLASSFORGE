@@ -3,12 +3,13 @@
 from decimal import Decimal
 
 from django.contrib.auth import get_user_model
-from django.core.exceptions import ValidationError
+from django.core.exceptions import FieldDoesNotExist, ValidationError
 from django.db import IntegrityError
 from django.test import TestCase
 from django.urls import reverse
 from django.utils import timezone
 
+from apps.courses.forms import AssignmentForm, SubmissionForm
 from apps.courses.models import (
     Assignment,
     Course,
@@ -174,6 +175,89 @@ class AssignmentCategoryTests(TestCase):
         self.assertEqual(response.status_code, 200)
         titles = [a.title for a in response.context['assignments']]
         self.assertEqual(titles, ['Diagram'])
+
+
+class SubmissionSettingsTests(TestCase):
+    def _assignment_data(self, **overrides):
+        data = {
+            'title': 'No links allowed',
+            'category': 'code_project',
+            'description': '',
+            'due_date': (timezone.now() + timezone.timedelta(days=7)).strftime(
+                '%Y-%m-%dT%H:%M'
+            ),
+            'max_score': '100.00',
+            'status': 'published',
+            'guidelines': '',
+            'required_files': '',
+            'expected_outcomes': '',
+            'accepted_formats': '.zip\n.pdf',
+            'required_directories': '',
+            'documentation_requirements': '',
+            'validation_rules': '',
+            'required_tests': '',
+            'max_upload_mb': '25',
+            'ai_grading_mode': 'instructor_approved',
+            'manual_review_required': 'on',
+            'late_policy': 'accept',
+            'late_penalty_percent': '0',
+            'allow_resubmission': 'on',
+            'revision_deadline_days': '7',
+            'default_exclusions': '',
+            'accepts_zip': 'on',
+            'accepts_pdf': 'on',
+            'ai_auto_run': 'on',
+        }
+        data.update(overrides)
+        return data
+
+    def test_github_fields_are_removed_from_models_and_forms(self):
+        with self.assertRaises(FieldDoesNotExist):
+            Assignment._meta.get_field('accepts_github')
+        with self.assertRaises(FieldDoesNotExist):
+            Submission._meta.get_field('github_url')
+        self.assertNotIn('accepts_github', AssignmentForm().fields)
+        self.assertNotIn('github_url', SubmissionForm().fields)
+
+    def test_assignment_creation_only_offers_file_formats(self):
+        instructor, _ = make_users()
+        course = make_course(instructor)
+        self.client.force_login(instructor)
+        response = self.client.get(
+            reverse('courses:assignment_create', args=[course.pk])
+        )
+        self.assertEqual(response.status_code, 200)
+        self.assertNotContains(response, 'GitHub')
+        self.assertContains(response, 'Accept .zip')
+        self.assertContains(response, 'Accept .pdf')
+
+    def test_assignment_form_accepts_zip_and_pdf_without_github(self):
+        form = AssignmentForm(data=self._assignment_data())
+        self.assertTrue(form.is_valid(), form.errors)
+        assignment = form.save(commit=False)
+        self.assertEqual(assignment.accepted_types, ['.zip', '.pdf'])
+
+    def test_submission_form_accepts_text_without_github(self):
+        instructor, student = make_users()
+        assignment = make_assignment(make_course(instructor))
+        form = SubmissionForm(
+            data={'text_content': 'Notes submitted as text.'},
+            assignment=assignment,
+        )
+        self.assertTrue(form.is_valid(), form.errors)
+
+    def test_submission_page_has_no_github_input(self):
+        instructor, student = make_users()
+        course = make_course(instructor)
+        Enrollment.objects.create(course=course, student=student)
+        assignment = make_assignment(course)
+        self.client.force_login(student)
+        response = self.client.get(
+            reverse('courses:submission_create', args=[assignment.pk])
+        )
+        self.assertEqual(response.status_code, 200)
+        self.assertNotContains(response, 'GitHub')
+        self.assertContains(response, 'Text Content / Notes')
 
 
 class CoursePermissionTests(TestCase):

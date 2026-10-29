@@ -1,0 +1,148 @@
+{% extends "theme/base.html" %}
+{% block content %}
+<div class="container-xl">
+  <div class="page-header d-print-none" aria-label="Page header">
+    <div class="container-xl">
+      <div class="row align-items-center">
+        <div class="col">
+          <div class="page-pretitle">ClassForge · Project workspaces</div>
+          <h2 class="page-title mb-0">Projects</h2>
+          <div class="text-muted mt-1">
+            Immutable snapshots, revision requests and assessment drafts for your courses.
+          </div>
+        </div>
+        <div class="col-auto ms-auto">
+          <div class="btn-list">
+            <a href="{% url 'projects:assessment_queue' %}" class="btn btn-outline-secondary">
+              <i class="fas fa-clipboard-check me-2"></i> Assessments
+            </a>
+            <a href="{% url 'projects:notification_list' %}" class="btn btn-outline-secondary position-relative">
+              <i class="fas fa-bell me-2"></i> Notifications
+              {% if unread_notifications %}<span class="badge bg-danger text-white ms-1">{{ unread_notifications }}</span>{% endif %}
+            </a>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+  <br>
+
+  {% for message in messages %}
+  <div class="alert alert-info alert-dismissible" role="alert">
+    <div>{{ message }}</div>
+    <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+  </div>
+  {% endfor %}
+
+  <div class="card mb-3">
+    <div class="card-body">
+      <form method="GET" class="row g-2 align-items-end">
+        <div class="col-md-5">
+          <label class="form-label">Search</label>
+          <input type="search" name="q" value="{{ query }}" class="form-control" placeholder="Project, assignment or student">
+        </div>
+        <div class="col-md-4">
+          <label class="form-label">Status</label>
+          <select name="status" class="form-select">
+            <option value="">All statuses</option>
+            {% for value, label in status_choices %}
+            <option value="{{ value }}" {% if status == value %}selected{% endif %}>{{ label }}</option>
+            {% endfor %}
+          </select>
+        </div>
+        <div class="col-md-3 d-flex gap-2">
+          <button class="btn btn-primary flex-grow-1">Filter</button>
+          <a href="{% url 'projects:project_list' %}" class="btn btn-ghost-secondary">Reset</a>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-header">
+      <div class="card-title">Workspaces ({{ projects.paginator.count }})</div>
+    </div>
+    <div class="table-responsive">
+      <table class="table table-vcenter table-hover card-table text-nowrap">
+        <thead>
+          <tr>
+            <th>Project</th>
+            <th>Assignment</th>
+            <th>Student</th>
+            <th>Versions</th>
+            <th>Latest snapshot</th>
+            <th>Status</th>
+            <th>Updated</th>
+            <th class="w-1">Actions</th>
+          </tr>
+        </thead>
+        <tbody>
+        {% for project in projects %}
+        <tr>
+          <td class="fw-semibold">
+            <a href="{% url 'projects:project_detail' project.id %}">{{ project.title|default:project.assignment.title }}</a>
+          </td>
+          <td>
+            <a href="{% url 'courses:assignment_detail' project.assignment.id %}" class="text-muted">
+              {{ project.assignment.title }}
+            </a>
+            <div class="small text-muted">{{ project.assignment.course.code }}</div>
+          </td>
+          <td class="text-muted">{{ project.student.get_full_name|default:project.student.username }}</td>
+          <td><span class="badge bg-primary-lt text-primary">{{ project.snapshot_count }}</span></td>
+          <td>
+            {% with latest=project.latest_snapshot %}
+            {% if latest %}
+            <a href="{% url 'projects:snapshot_detail' latest.id %}" class="badge bg-azure-lt text-azure">v{{ latest.version }}</a>
+            <span class="text-muted small">{{ latest.file_count }} file{{ latest.file_count|pluralize }}</span>
+            {% else %}
+            <span class="text-muted">No snapshots</span>
+            {% endif %}
+            {% endwith %}
+          </td>
+          <td>
+            {% if project.status == 'archived' %}
+            <span class="badge bg-secondary-lt text-secondary">Archived</span>
+            {% else %}
+            <span class="badge bg-success-lt text-success">Active</span>
+            {% endif %}
+          </td>
+          <td class="text-muted">{{ project.updated_at|date:"M j, Y g:i A" }}</td>
+          <td>
+            <a href="{% url 'projects:project_detail' project.id %}" class="btn btn-ghost-secondary btn-icon btn-sm" title="Open project">
+              <i class="fas fa-eye text-primary"></i>
+            </a>
+          </td>
+        </tr>
+        {% empty %}
+        <tr>
+          <td colspan="8">
+            <div class="empty py-4">
+              <div class="empty-icon"><i class="fas fa-folder-open fa-2x text-muted"></i></div>
+              <p class="empty-title">No project workspaces yet</p>
+              <p class="empty-subtitle text-muted">
+                Open an assignment and create a project workspace, or submit a .zip from the VS Code extension.
+              </p>
+            </div>
+          </td>
+        </tr>
+        {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    {% if projects.paginator.num_pages > 1 %}
+    <div class="card-footer d-flex align-items-center">
+      <p class="m-0 text-muted">Page {{ projects.number }} of {{ projects.paginator.num_pages }}</p>
+      <div class="ms-auto btn-list">
+        {% if projects.has_previous %}
+        <a href="?page={{ projects.previous_page_number }}{% if query %}&q={{ query|urlencode }}{% endif %}{% if status %}&status={{ status }}{% endif %}" class="btn btn-sm btn-outline-secondary">Previous</a>
+        {% endif %}
+        {% if projects.has_next %}
+        <a href="?page={{ projects.next_page_number }}{% if query %}&q={{ query|urlencode }}{% endif %}{% if status %}&status={{ status }}{% endif %}" class="btn btn-sm btn-outline-secondary">Next</a>
+        {% endif %}
+      </div>
+    </div>
+    {% endif %}
+  </div>
+</div>
+{% endblock %}

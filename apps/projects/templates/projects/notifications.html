@@ -1,0 +1,90 @@
+{% extends "theme/base.html" %}
+{% block content %}
+<div class="container-xl">
+  <div class="page-header d-print-none" aria-label="Page header">
+    <div class="container-xl">
+      <div class="row align-items-center">
+        <div class="col">
+          <div class="page-pretitle">ClassForge · Notifications</div>
+          <h2 class="page-title mb-0">Notifications</h2>
+          <div class="text-muted mt-1">Assessment results, revision requests and pull-request activity.</div>
+        </div>
+        <div class="col-auto ms-auto">
+          <div class="btn-list">
+            <a href="{% url 'projects:project_list' %}" class="btn btn-ghost-secondary">Projects</a>
+            <form method="POST">
+              {% csrf_token %}
+              <button class="btn btn-outline-secondary">Mark all as read</button>
+            </form>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+  <br>
+
+  {% for message in messages %}
+  <div class="alert alert-info alert-dismissible" role="alert">
+    <div>{{ message }}</div>
+    <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+  </div>
+  {% endfor %}
+
+  <div class="card">
+    <div class="card-header"><div class="card-title">{{ notifications.paginator.count }} notification{{ notifications.paginator.count|pluralize }}</div></div>
+    <div class="list-group list-group-flush">
+      {% for notification in notifications %}
+      <div class="list-group-item {% if not notification.is_read %}bg-azure-lt{% endif %}">
+        <div class="d-flex align-items-start gap-3">
+          <span class="avatar avatar-sm bg-secondary-lt">
+            {% if notification.kind == 'assessment' %}<i class="fas fa-clipboard-check"></i>
+            {% elif notification.kind == 'revision' %}<i class="fas fa-rotate-left"></i>
+            {% elif notification.kind == 'pull_request' %}<i class="fas fa-code-pull-request"></i>
+            {% elif notification.kind == 'grade' %}<i class="fas fa-graduation-cap"></i>
+            {% else %}<i class="fas fa-circle-info"></i>{% endif %}
+          </span>
+          <div class="flex-grow-1 min-w-0">
+            <div class="d-flex align-items-center justify-content-between gap-2">
+              <span class="fw-semibold">
+                {% if notification.url %}<a href="{{ notification.url }}">{{ notification.title }}</a>{% else %}{{ notification.title }}{% endif %}
+              </span>
+              <span class="text-muted small text-nowrap">{{ notification.created_at|date:"M j, Y g:i A" }}</span>
+            </div>
+            {% if notification.body %}<div class="text-muted small">{{ notification.body|truncatechars:240 }}</div>{% endif %}
+            <div class="mt-1 d-flex align-items-center gap-2">
+              <span class="badge bg-secondary-lt text-secondary">{{ notification.get_kind_display }}</span>
+              {% if not notification.is_read %}
+              <form method="POST" class="d-inline">
+                {% csrf_token %}
+                <input type="hidden" name="notification_id" value="{{ notification.id }}">
+                <button class="btn btn-sm btn-ghost-secondary py-0">Mark read</button>
+              </form>
+              {% else %}
+              <span class="badge bg-success-lt text-success">Read</span>
+              {% endif %}
+            </div>
+          </div>
+        </div>
+      </div>
+      {% empty %}
+      <div class="card-body">
+        <div class="empty py-4">
+          <div class="empty-icon"><i class="fas fa-bell-slash fa-2x text-muted"></i></div>
+          <p class="empty-title">No notifications</p>
+          <p class="empty-subtitle text-muted">You are all caught up.</p>
+        </div>
+      </div>
+      {% endfor %}
+    </div>
+    {% if notifications.paginator.num_pages > 1 %}
+    <div class="card-footer d-flex align-items-center">
+      <p class="m-0 text-muted">Page {{ notifications.number }} of {{ notifications.paginator.num_pages }}</p>
+      <div class="ms-auto btn-list">
+        {% if notifications.has_previous %}<a href="?page={{ notifications.previous_page_number }}" class="btn btn-sm btn-outline-secondary">Previous</a>{% endif %}
+        {% if notifications.has_next %}<a href="?page={{ notifications.next_page_number }}" class="btn btn-sm btn-outline-secondary">Next</a>{% endif %}
+      </div>
+    </div>
+    {% endif %}
+  </div>
+</div>
+{% endblock %}

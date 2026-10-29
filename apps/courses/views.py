@@ -75,6 +75,29 @@ def _require_instructor(user):
         raise PermissionDenied('Only instructors can do that.')
 
 
+def _set_assignment_timestamps(assignment):
+    if assignment.status == Assignment.STATUS_PUBLISHED and assignment.published_at is None:
+        assignment.published_at = timezone.now()
+        assignment.save(update_fields=['published_at', 'updated_at'])
+
+
+def _mirror_submission_snapshot(request, submission):
+    """Best-effort project snapshot + assessment for a .zip web submission."""
+    uploaded = request.FILES.get('file_attachment')
+    if uploaded is None:
+        return None
+    try:
+        from apps.projects.assessment import request_assessment
+        from apps.projects.services import save_web_submission_snapshot
+
+        snapshot = save_web_submission_snapshot(submission, uploaded)
+        if snapshot is not None and submission.assignment.ai_auto_run:
+            request_assessment(snapshot, request.user)
+        return snapshot
+    except Exception:
+        return None
+
+
 @login_required(login_url='login')
 def course_list(request):
     query = request.GET.get('q', '').strip()
@@ -288,6 +311,7 @@ def assignment_create(request, course_pk):
             assignment = form.save(commit=False)
             assignment.course = course
             assignment.save()
+            _set_assignment_timestamps(assignment)
             messages.success(request, 'Assignment created successfully.')
             log_activity(
                 request,
@@ -326,6 +350,16 @@ def assignment_detail(request, pk):
         'rubric': getattr(assignment, 'rubric', None),
         'now': timezone.now(),
     }
+
+    from apps.projects.models import Project
+
+    projects = assignment.projects.all()
+    context['project_count'] = projects.count()
+    context['my_project'] = (
+        None
+        if can_grade_this
+        else projects.filter(student=request.user).first()
+    )
 
     if can_grade_this:
         # All versions grouped by student, newest first; prefetch grades.
@@ -372,6 +406,7 @@ def assignment_update(request, pk):
         form = AssignmentForm(request.POST, instance=assignment)
         if form.is_valid():
             form.save()
+            _set_assignment_timestamps(assignment)
             messages.success(request, 'Assignment updated successfully.')
             return redirect('courses:assignment_detail', pk=assignment.pk)
     else:
@@ -446,6 +481,7 @@ def submission_create(request, pk):
                     description=f'Uploaded v{submission.version} for "{assignment.title}"',
                     metadata={'course_id': course.id},
                 )
+                _mirror_submission_snapshot(request, submission)
                 return redirect('courses:assignment_detail', pk=pk)
     else:
         form = SubmissionForm(assignment=assignment)
@@ -730,6 +766,34 @@ def assignment_rubric(request, pk):
                 description=f'Removed "{name}" from rubric for {assignment.title}',
                 metadata={'course_id': assignment.course_id},
             )
+        elif action == 'publish_rubric':
+            from apps.projects.services import publish_rubric
+
+            try:
+                version = publish_rubric(
+                    rubric, request.user, request.POST.get('notes', '')
+                )
+            except Exception as exc:
+                messages.error(request, f'Could not publish the rubric: {exc}')
+            else:
+                messages.success(
+                    request,
+                    f'Rubric version {version.version} published with '
+                    f'{version.total_points} total points.',
+                )
+                log_activity(
+                    request,
+                    action='rubric.published',
+                    entity=version,
+                    description=(
+                        f'Published rubric v{version.version} for {assignment.title}'
+                    ),
+                    metadata={
+                        'course_id': assignment.course_id,
+                        'assignment_id': assignment.id,
+                        'rubric_id': rubric.id,
+                    },
+                )
         return redirect('courses:assignment_rubric', pk=assignment.pk)
 
     rubric_form = RubricForm(instance=rubric)
@@ -743,6 +807,7 @@ def assignment_rubric(request, pk):
             'rubric': rubric,
             'rubric_form': rubric_form,
             'criterion_form': criterion_form,
+            'rubric_versions': rubric.versions.select_related('published_by')[:10],
         },
     )
 
@@ -1033,6 +1098,7 @@ def dashboard_submit(request, pk):
                 description=f'Uploaded v{submission.version} for "{assignment.title}"',
                 metadata={'course_id': course.id},
             )
+            _mirror_submission_snapshot(request, submission)
             AssignmentSeen.objects.get_or_create(student=request.user, assignment=assignment)
     else:
         messages.error(request, 'Could not submit. Please check the file/link/text.')

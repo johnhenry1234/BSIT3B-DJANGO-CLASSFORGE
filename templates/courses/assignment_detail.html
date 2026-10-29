@@ -19,6 +19,9 @@
             {% if can_manage %}
             <a href="{% url 'courses:assignment_update' assignment.id %}" class="btn btn-outline-primary">Edit</a>
             <a href="{% url 'courses:assignment_rubric' assignment.id %}" class="btn btn-outline-secondary">Rubric</a>
+            <a href="{% url 'projects:project_list' %}?assignment={{ assignment.id }}" class="btn btn-outline-secondary">
+              Projects ({{ project_count }})
+            </a>
             <form method="POST" action="{% url 'ai:run_assignment' assignment.id %}" class="d-inline">
               {% csrf_token %}
               <button class="btn btn-outline-info">AI Draft for Latest</button>
@@ -49,6 +52,17 @@
   {% endif %}
 
   {% if can_manage %}
+  {% if project_count %}
+  <div class="card mb-3">
+    <div class="card-body d-flex align-items-center">
+      <div>
+        <div class="fw-semibold">Project workspaces</div>
+        <div class="text-muted small">{{ project_count }} student workspace{{ project_count|pluralize }} with immutable snapshots and assessments.</div>
+      </div>
+      <a href="{% url 'projects:project_list' %}?assignment={{ assignment.id }}" class="btn btn-outline-primary ms-auto">Open projects</a>
+    </div>
+  </div>
+  {% endif %}
   <div class="card">
     <div class="card-header"><div class="card-title">Submissions by Student</div></div>
     <div class="table-responsive">
@@ -115,6 +129,40 @@
   </div>
   {% endif %}
   {% else %}
+  {% if my_project %}
+  <div class="card mb-3">
+    <div class="card-body d-flex align-items-center">
+      <div>
+        <div class="fw-semibold">{{ my_project.title|default:assignment.title }}</div>
+        <div class="text-muted small">
+          {{ my_project.snapshot_count }} snapshot{{ my_project.snapshot_count|pluralize }} ·
+          <a href="{% url 'projects:project_detail' my_project.id %}">Open project workspace</a>
+        </div>
+      </div>
+      <a href="{% url 'projects:project_detail' my_project.id %}" class="btn btn-outline-primary ms-auto">Open project</a>
+    </div>
+  </div>
+  {% elif is_enrolled %}
+  <div class="card mb-3">
+    <div class="card-body">
+      <div class="fw-semibold mb-1">Project workspace</div>
+      <p class="text-muted small mb-2">
+        Create a workspace to track immutable snapshots, request revisions and receive assessment drafts.
+        Upload code from the VS Code extension or submit a .zip below.
+      </p>
+      <form method="POST" action="{% url 'projects:project_create' assignment.id %}" class="row g-2 align-items-end">
+        {% csrf_token %}
+        <div class="col-md-6">
+          <label class="form-label">Project title</label>
+          <input type="text" name="title" class="form-control" maxlength="255" value="{{ assignment.title }}">
+        </div>
+        <div class="col-md-3">
+          <button class="btn btn-outline-primary w-100">Create workspace</button>
+        </div>
+      </form>
+    </div>
+  </div>
+  {% endif %}
   {% if latest_grade %}
   <div class="alert alert-success" role="alert">
     Latest published grade: <strong>{{ latest_grade.score }} / {{ assignment.max_score }}</strong>

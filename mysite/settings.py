@@ -21,12 +21,21 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 # See https://docs.djangoproject.com/en/6.0/howto/deployment/checklist/
 
 # SECURITY WARNING: keep the secret key used in production secret!
-SECRET_KEY = 'django-insecure-zsnno#^l!whuzs%55j6*366px#r09+borh$1^2mj*_ovz47!o_'
+SECRET_KEY = os.environ.get(
+    'DJANGO_SECRET_KEY',
+    'django-insecure-zsnno#^l!whuzs%55j6*366px#r09+borh$1^2mj*_ovz47!o_',
+)
 
 # SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = True
+DEBUG = os.environ.get('DJANGO_DEBUG', '1').lower() in ('1', 'true', 'yes')
 
-ALLOWED_HOSTS = []
+ALLOWED_HOSTS = [
+    host.strip()
+    for host in os.environ.get('DJANGO_ALLOWED_HOSTS', '').split(',')
+    if host.strip()
+]
+if DEBUG and not ALLOWED_HOSTS:
+    ALLOWED_HOSTS = ['localhost', '127.0.0.1', '[::1]']
 
 
 # Application definition
@@ -44,6 +53,7 @@ INSTALLED_APPS = [
     'apps.info',
     'apps.courses',
     'apps.ai',
+    'apps.projects',
     'apps.portfolio',
 ]
 
@@ -70,6 +80,7 @@ TEMPLATES = [
                 'django.contrib.auth.context_processors.auth',
                 'django.contrib.messages.context_processors.messages',
                 'apps.users.context_processors.role_context',
+                'apps.projects.context_processors.project_context',
             ],
         },
     },
@@ -145,4 +156,56 @@ LOGIN_REDIRECT_URL = '/home/'
 LOGOUT_REDIRECT_URL = '/'
 
 MEDIA_URL = '/media/'
-MEDIA_ROOT = BASE_DIR / 'media'
+MEDIA_ROOT = Path(os.environ.get('DJANGO_MEDIA_ROOT', BASE_DIR / 'media'))
+
+# ---------------------------------------------------------------------------
+# ClassForge project workspace / assessment configuration
+# ---------------------------------------------------------------------------
+# All secrets stay in the environment.  The AI integration is optional: when
+# AI_API_KEY is empty the assessment engine falls back to a deterministic,
+# evidence-based rubric draft and records that no model was used.
+AI_API_BASE = os.environ.get('AI_API_BASE', 'https://api.openai.com/v1')
+AI_API_KEY = os.environ.get('AI_API_KEY', '')
+AI_MODEL = os.environ.get('AI_MODEL', 'gpt-4o-mini')
+AI_API_TIMEOUT = int(os.environ.get('AI_API_TIMEOUT', '45'))
+
+# inline | thread | celery.  Development defaults to inline so a single
+# process is enough; production should use celery (or thread).
+AI_EVALUATION_MODE = os.environ.get('AI_EVALUATION_MODE', 'inline').lower()
+ASSESSMENT_DISPATCH_MODE = os.environ.get(
+    'ASSESSMENT_DISPATCH_MODE', AI_EVALUATION_MODE
+).lower()
+
+# Upload / archive limits (defence in depth; also enforced by the inspector).
+CLASSFORGE_MAX_UPLOAD_MB = int(os.environ.get('CLASSFORGE_MAX_UPLOAD_MB', '25'))
+CLASSFORGE_MAX_SNAPSHOT_FILES = int(
+    os.environ.get('CLASSFORGE_MAX_SNAPSHOT_FILES', '500')
+)
+CLASSFORGE_MAX_SNAPSHOT_BYTES = int(
+    os.environ.get('CLASSFORGE_MAX_SNAPSHOT_BYTES', str(50 * 1024 * 1024))
+)
+CLASSFORGE_SNAPSHOT_ROOT = Path(
+    os.environ.get('CLASSFORGE_SNAPSHOT_ROOT', BASE_DIR / 'media' / 'project_snapshots')
+)
+CLASSFORGE_TEST_RUNNER = os.environ.get('CLASSFORGE_TEST_RUNNER', 'disabled').lower()
+CLASSFORGE_TEST_TIMEOUT = int(os.environ.get('CLASSFORGE_TEST_TIMEOUT', '120'))
+
+# Server-owned Git mirror.  Student code is committed, never executed.
+CLASSFORGE_GIT_ENABLED = os.environ.get('CLASSFORGE_GIT_ENABLED', '1').lower() in (
+    '1', 'true', 'yes'
+)
+CLASSFORGE_GIT_AUTHOR = os.environ.get('CLASSFORGE_GIT_AUTHOR', 'ClassForge')
+CLASSFORGE_GIT_EMAIL = os.environ.get('CLASSFORGE_GIT_EMAIL', 'classforge@localhost')
+
+# API tokens and throttle.
+CLASSFORGE_TOKEN_TTL_DAYS = int(os.environ.get('CLASSFORGE_TOKEN_TTL_DAYS', '30'))
+CLASSFORGE_API_RATE_LIMIT = int(os.environ.get('CLASSFORGE_API_RATE_LIMIT', '120'))
+CLASSFORGE_API_RATE_WINDOW = int(os.environ.get('CLASSFORGE_API_RATE_WINDOW', '60'))
+
+# Keep the local assessment job queue bounded / observable.
+ASSESSMENT_MAX_ATTEMPTS = int(os.environ.get('ASSESSMENT_MAX_ATTEMPTS', '3'))
+ASSESSMENT_STALE_AFTER_MINUTES = int(
+    os.environ.get('ASSESSMENT_STALE_AFTER_MINUTES', '30')
+)
+
+DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'

@@ -1,0 +1,128 @@
+{% extends "theme/base.html" %}
+{% block content %}
+<div class="container-xl">
+  <div class="page-header d-print-none" aria-label="Page header">
+    <div class="container-xl">
+      <div class="row align-items-center">
+        <div class="col">
+          <div class="page-pretitle">ClassForge · API access</div>
+          <h2 class="page-title mb-0">API tokens</h2>
+          <div class="text-muted mt-1">
+            Bearer tokens for the VS Code extension and JSON API v1. Tokens are stored as SHA-256 hashes.
+          </div>
+        </div>
+        <div class="col-auto ms-auto">
+          <a href="{% url 'projects:project_list' %}" class="btn btn-ghost-secondary">Projects</a>
+        </div>
+      </div>
+    </div>
+  </div>
+  <br>
+
+  {% for message in messages %}
+  <div class="alert {% if message.tags == 'error' %}alert-danger{% elif message.tags == 'warning' %}alert-warning{% elif message.tags == 'success' %}alert-success{% else %}alert-info{% endif %} alert-dismissible" role="alert">
+    <div>{{ message }}</div>
+    <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+  </div>
+  {% endfor %}
+
+  {% if raw_token %}
+  <div class="alert alert-warning" role="alert">
+    <h4 class="alert-heading">Copy this token now</h4>
+    <p class="mb-2">It is shown only once. Store it in your editor's secret storage, never in source control.</p>
+    <div class="input-group">
+      <input type="text" class="form-control font-monospace" value="{{ raw_token }}" readonly onclick="this.select();">
+    </div>
+    <div class="small text-muted mt-2">
+      Paste it into VS Code with the command <code>ClassForge: Sign in</code> or set <code>CLASSFORGE_TOKEN</code> for API clients.
+    </div>
+  </div>
+  {% endif %}
+
+  <div class="row row-cards">
+    <div class="col-lg-4">
+      <div class="card">
+        <div class="card-header"><div class="card-title">Create a token</div></div>
+        <form method="POST">
+          {% csrf_token %}
+          <input type="hidden" name="action" value="create">
+          <div class="card-body">
+            <label class="form-label">Token name</label>
+            <input type="text" name="name" class="form-control" maxlength="120" placeholder="VS Code — laptop">
+            <small class="form-hint">Use a name that identifies the device or integration.</small>
+            <div class="alert alert-info mt-3 mb-0 small">
+              Tokens expire after 30 days by default (configurable with <code>CLASSFORGE_TOKEN_TTL_DAYS</code>).
+            </div>
+          </div>
+          <div class="card-footer">
+            <button class="btn btn-primary w-100"><i class="fas fa-key me-2"></i> Create token</button>
+          </div>
+        </form>
+      </div>
+
+      <div class="card mt-3">
+        <div class="card-header"><div class="card-title">API quick start</div></div>
+        <div class="card-body">
+          <p class="text-muted small mb-2">Authenticate from a terminal:</p>
+          <pre class="bg-dark-lt p-2 rounded small mb-2">curl -X POST {{ request.scheme }}://{{ request.get_host }}/api/v1/auth/token/ \
+  -H "Content-Type: application/json" \
+  -d '{"username":"you","password":"…"}'</pre>
+          <p class="text-muted small mb-1">Then call an endpoint:</p>
+          <pre class="bg-dark-lt p-2 rounded small mb-0">curl {{ request.scheme }}://{{ request.get_host }}/api/v1/me/ \
+  -H "Authorization: Bearer cf_…"</pre>
+          <p class="text-muted small mt-2 mb-0">
+            Health: <a href="/api/v1/health/">/api/v1/health/</a>
+          </p>
+        </div>
+      </div>
+    </div>
+
+    <div class="col-lg-8">
+      <div class="card">
+        <div class="card-header"><div class="card-title">Your tokens</div></div>
+        <div class="table-responsive">
+          <table class="table table-vcenter card-table">
+            <thead><tr><th>Name</th><th>Prefix</th><th>Scopes</th><th>Created</th><th>Last used</th><th>Expires</th><th>Status</th><th class="w-1"></th></tr></thead>
+            <tbody>
+            {% for token in tokens %}
+            <tr>
+              <td class="fw-semibold">{{ token.name }}</td>
+              <td><code>{{ token.prefix }}…</code></td>
+              <td>{% for scope in token.scope_list %}<span class="badge bg-secondary-lt text-secondary me-1">{{ scope }}</span>{% endfor %}</td>
+              <td class="text-muted">{{ token.created_at|date:"M j, Y" }}</td>
+              <td class="text-muted">{{ token.last_used_at|date:"M j, Y g:i A"|default:"Never" }}</td>
+              <td class="text-muted">{{ token.expires_at|date:"M j, Y"|default:"Never" }}</td>
+              <td>
+                {% if token.is_revoked %}<span class="badge bg-secondary-lt text-secondary">Revoked</span>
+                {% elif token.is_expired %}<span class="badge bg-danger-lt text-danger">Expired</span>
+                {% else %}<span class="badge bg-success-lt text-success">Active</span>{% endif %}
+              </td>
+              <td>
+                {% if not token.is_revoked %}
+                <form method="POST" onsubmit="return confirm('Revoke this token? Clients using it will be signed out.');">
+                  {% csrf_token %}
+                  <input type="hidden" name="action" value="revoke">
+                  <input type="hidden" name="token_id" value="{{ token.id }}">
+                  <button class="btn btn-sm btn-outline-danger">Revoke</button>
+                </form>
+                {% endif %}
+              </td>
+            </tr>
+            {% empty %}
+            <tr>
+              <td colspan="8">
+                <div class="empty py-4">
+                  <p class="empty-title">No API tokens yet</p>
+                  <p class="empty-subtitle text-muted">Create one to connect the VS Code extension.</p>
+                </div>
+              </td>
+            </tr>
+            {% endfor %}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}
