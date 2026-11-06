@@ -5,8 +5,8 @@
     <div class="row align-items-center">
       <div class="col">
         <div class="page-pretitle">ClassForge · Grading</div>
-        <h2 class="page-title mb-0">Grading Queue</h2>
-        <div class="text-muted mt-1">Latest submission per student with no grade yet. Use batch publish when ready.</div>
+        <h2 class="page-title mb-0">Students to grade</h2>
+        <div class="text-muted mt-1">Latest work from each student that has not been graded yet. Share grades when ready.</div>
       </div>
       <div class="col-auto ms-auto">
         <a href="{% url 'courses:course_list' %}" class="btn btn-ghost-secondary">Back to Courses</a>
@@ -25,8 +25,8 @@
     {% csrf_token %}
     <div class="card">
       <div class="card-header d-flex align-items-center">
-        <div class="card-title">Ungraded Latest Submissions ({{ queue|length }})</div>
-        <button class="btn btn-primary btn-sm ms-auto">Publish Selected Drafts</button>
+        <div class="card-title">Waiting for a grade ({{ queue|length }})</div>
+        <button class="btn btn-primary btn-sm ms-auto">Share selected grades</button>
       </div>
       <div class="table-responsive">
         <table class="table table-vcenter card-table">
@@ -38,7 +38,7 @@
               <th>Student</th>
               <th>Version</th>
               <th>Submitted</th>
-              <th>AI Draft</th>
+              <th>AI feedback</th>
               <th class="w-1">Action</th>
             </tr>
           </thead>
@@ -53,7 +53,7 @@
             <td class="text-muted">{{ item.submission.submitted_at|date:"M j, Y g:i A" }}</td>
             <td>
               {% if item.ai and item.ai.is_completed %}
-                <span class="badge bg-info-lt text-info">Suggested {{ item.ai.suggested_score }}/{{ item.submission.assignment.max_score }} · {{ item.ai.flags.count }} flags</span>
+                <span class="badge bg-info-lt text-info">Suggested {{ item.ai.suggested_score }}/{{ item.submission.assignment.max_score }} · {{ item.ai.flags.count }} warning{{ item.ai.flags.count|pluralize }}</span>
               {% else %}
                 <span class="text-muted">—</span>
               {% endif %}
@@ -61,7 +61,7 @@
             <td><a href="{% url 'courses:submission_grade' item.submission.id %}" class="btn btn-sm btn-primary">Grade</a></td>
           </tr>
           {% empty %}
-          <tr><td colspan="8"><div class="empty py-4"><p class="empty-title">No ungraded submissions</p></div></td></tr>
+          <tr><td colspan="8"><div class="empty py-4"><p class="empty-title">No students waiting for a grade</p></div></td></tr>
           {% endfor %}
           </tbody>
         </table>

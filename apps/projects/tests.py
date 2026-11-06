@@ -1207,18 +1207,10 @@ class ProjectWebTests(WorkspaceTestCase):
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, 'schema.sql')
 
-    def test_token_management_page_shows_token_once(self):
+    def test_access_key_management_page_is_not_exposed(self):
         self.client.force_login(self.student)
-        response = self.client.get(reverse('projects:token_manage'))
-        self.assertEqual(response.status_code, 200)
-        self.assertIsNone(response.context['raw_token'])
-
-        response = self.client.post(
-            reverse('projects:token_manage'), {'name': 'Laptop', 'action': 'create'}
-        )
-        self.assertEqual(response.status_code, 200)
-        self.assertTrue(response.context['raw_token'].startswith('cf_'))
-        self.assertTrue(ApiToken.objects.filter(user=self.student, name='Laptop').exists())
+        response = self.client.get('/projects/tokens/')
+        self.assertEqual(response.status_code, 404)
 
     def test_notifications_can_be_marked_read(self):
         services.notify(self.student, title='You have news')

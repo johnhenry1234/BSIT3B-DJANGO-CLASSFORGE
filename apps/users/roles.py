@@ -96,7 +96,7 @@ def course_role(user, course):
 def role_label(user):
     labels = {
         UserProfile.ROLE_ADMIN: 'Administrator',
-        UserProfile.ROLE_INSTRUCTOR: 'Instructor',
+        UserProfile.ROLE_INSTRUCTOR: 'Teacher',
         UserProfile.ROLE_TA: 'Teaching Assistant',
         UserProfile.ROLE_STUDENT: 'Student',
     }

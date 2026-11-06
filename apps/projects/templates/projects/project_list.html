@@ -5,16 +5,16 @@
     <div class="container-xl">
       <div class="row align-items-center">
         <div class="col">
-          <div class="page-pretitle">ClassForge · Project workspaces</div>
+          <div class="page-pretitle">ClassForge · Projects</div>
           <h2 class="page-title mb-0">Projects</h2>
           <div class="text-muted mt-1">
-            Immutable snapshots, revision requests and assessment drafts for your courses.
+            Saved versions, change requests and AI feedback for your courses.
           </div>
         </div>
         <div class="col-auto ms-auto">
           <div class="btn-list">
             <a href="{% url 'projects:assessment_queue' %}" class="btn btn-outline-secondary">
-              <i class="fas fa-clipboard-check me-2"></i> Assessments
+              <i class="fas fa-clipboard-check me-2"></i> Feedback
             </a>
             <a href="{% url 'projects:notification_list' %}" class="btn btn-outline-secondary position-relative">
               <i class="fas fa-bell me-2"></i> Notifications
@@ -60,7 +60,7 @@
 
   <div class="card">
     <div class="card-header">
-      <div class="card-title">Workspaces ({{ projects.paginator.count }})</div>
+      <div class="card-title">Projects ({{ projects.paginator.count }})</div>
     </div>
     <div class="table-responsive">
       <table class="table table-vcenter table-hover card-table text-nowrap">
@@ -70,7 +70,7 @@
             <th>Assignment</th>
             <th>Student</th>
             <th>Versions</th>
-            <th>Latest snapshot</th>
+            <th>Latest saved version</th>
             <th>Status</th>
             <th>Updated</th>
             <th class="w-1">Actions</th>
@@ -96,7 +96,7 @@
             <a href="{% url 'projects:snapshot_detail' latest.id %}" class="badge bg-azure-lt text-azure">v{{ latest.version }}</a>
             <span class="text-muted small">{{ latest.file_count }} file{{ latest.file_count|pluralize }}</span>
             {% else %}
-            <span class="text-muted">No snapshots</span>
+            <span class="text-muted">No saved versions</span>
             {% endif %}
             {% endwith %}
           </td>
@@ -119,9 +119,9 @@
           <td colspan="8">
             <div class="empty py-4">
               <div class="empty-icon"><i class="fas fa-folder-open fa-2x text-muted"></i></div>
-              <p class="empty-title">No project workspaces yet</p>
+              <p class="empty-title">No projects yet</p>
               <p class="empty-subtitle text-muted">
-                Open an assignment and create a project workspace, or submit a .zip from the VS Code extension.
+                Open an assignment and create a project, or upload project files from the VS Code extension.
               </p>
             </div>
           </td>

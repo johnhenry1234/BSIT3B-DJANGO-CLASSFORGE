@@ -136,6 +136,19 @@ class AssignmentForm(forms.ModelForm):
             'ai_auto_run': forms.CheckboxInput(attrs={'class': 'form-check-input'}),
         }
 
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.fields['status'].choices = [
+            ('draft', 'Draft'),
+            ('published', 'Available'),
+            ('archived', 'Archived'),
+        ]
+        self.fields['ai_grading_mode'].choices = [
+            ('instructor_approved', 'Teacher review required'),
+            ('automatic', 'Automatic feedback (suggested score, review still available)'),
+            ('advisory', 'Teacher grades with automatic feedback'),
+        ]
+
     def clean(self):
         cleaned = super().clean()
         if not any(

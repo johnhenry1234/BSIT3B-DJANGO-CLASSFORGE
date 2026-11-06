@@ -72,7 +72,7 @@ def _validate_registration_data(data):
         errors['confirm_password'] = 'Passwords do not match.'
 
     if role not in ROLE_CHOICES:
-        errors['role'] = 'Choose a valid role: student or instructor.'
+        errors['role'] = 'Choose a valid role: student or teacher.'
 
     if not id_number:
         errors['id_number'] = 'ID number is required.'

@@ -1,20 +1,20 @@
 # ClassForge for VS Code
 
-Submit ClassForge project snapshots, check assessment status, read feedback, and
-create revision branches without leaving VS Code.
+Upload ClassForge project files, check feedback, and start requested changes
+without leaving VS Code.
 
 The extension never executes workspace code. It collects files that pass the
-ClassForge exclusion policy, uploads an immutable snapshot to the ClassForge
-server, and displays the server's assessment draft. Assessment drafts are not
-final grades; instructors review and publish grades in the web app.
+ClassForge exclusion policy, uploads a saved version to the ClassForge server,
+and displays AI feedback. AI feedback is not a final grade; teachers review and
+share grades in the web app.
 
 ## Requirements
 
 - A running ClassForge server (default `http://localhost:8000`).
-- A ClassForge account enrolled in the target course (or an instructor/TA
+- A ClassForge account that has joined the target course (or a teacher/TA
   account).
 - VS Code 1.85+.
-- Git, only for the revision-branch command.
+- Git, only for the requested-changes command.
 
 ## Install / develop
 
@@ -39,12 +39,12 @@ code --install-extension classforge-vscode-0.1.0.vsix
 ClassForge does **not** expose a Git remote to VS Code. There is no `git push`
 to ClassForge and no `git pull`/clone from it. In this extension:
 
-- **Push** = upload the current workspace as an immutable project snapshot.
-- **Pull** = fetch assessment status, feedback, and revision requests.
+- **Push** = upload the current workspace as a new saved version.
+- **Pull** = fetch feedback status, feedback, and change requests.
 
 Use normal Git separately if you also want GitHub/GitLab push/pull.
 
-1. **Open your project folder** in VS Code. The extension submits the first
+1. **Open your project folder** in VS Code. The extension uploads the first
    workspace folder. Add a `.classforgeignore` if you need extra exclusions;
    secrets, `.git`, dependency folders, and virtual environments are always
    excluded.
@@ -56,52 +56,53 @@ Use normal Git separately if you also want GitHub/GitLab push/pull.
 
 3. **Sign in:** run **ClassForge: Sign In** from the Command Palette
    (`Ctrl+Shift+P`). Enter your ClassForge username/password. The server returns
-   a scoped, expiring token; the extension stores only that token in VS Code
+   a scoped, expiring access key; the extension stores only that key in VS Code
    SecretStorage (never the password).
 4. **Select course and assignment:** run **ClassForge: Select Course**, then
-   **ClassForge: Select Assignment**. The account must be enrolled and the
-   assignment must be published.
-5. **Preview the push:** run **ClassForge: Preview Submission Manifest** to
-   inspect exactly which files/checksums will be uploaded and what was excluded.
-6. **Push the snapshot:** run **ClassForge: Submit Project Snapshot**, confirm,
-   and optionally add a note. The server stores a new immutable version
-   (`v1`, `v2`, …), optionally mirrors it to the server-owned Git repository,
-   and optionally starts an assessment.
-7. **Pull status/feedback:** run **ClassForge: Check Assessment Status** or
-   **ClassForge: Show Feedback**. The web dashboard is available with
-   **ClassForge: Open Web Dashboard**.
-8. **Pull revision work:** when an instructor/TA creates a revision request, run
-   **ClassForge: Create Revision Branch**, choose the request, commit locally,
-   then submit a new snapshot. Open/review the pull request in the web UI.
+   **ClassForge: Select Assignment**. Your account must have joined the course
+   and the assignment must be published.
+5. **Preview the push:** run **ClassForge: Preview Files to Upload** to inspect
+   exactly which files and checksums will be uploaded and what was excluded.
+6. **Push your files:** run **ClassForge: Upload Project Files**, confirm, and
+   optionally add a note. The server stores a new saved version (`v1`, `v2`, …),
+   optionally records it in the server-owned project history, and optionally
+   starts automatic feedback.
+7. **Pull status/feedback:** run **ClassForge: Check Feedback** or
+   **ClassForge: View Feedback**. The ClassForge website is available with
+   **ClassForge: Open ClassForge Website**.
+8. **Pull requested changes:** when a teacher/TA requests changes, run
+   **ClassForge: Start Requested Changes**, choose the request, commit locally,
+   then upload your new files. Send the changes for review from the project page
+   in the web app.
 
 | Action | Command | Result |
 | --- | --- | --- |
-| Push project | `ClassForge: Submit Project Snapshot` | New immutable snapshot version uploaded. |
-| Pull status | `ClassForge: Check Assessment Status` | Latest snapshot and assessment status. |
-| Pull feedback | `ClassForge: Show Feedback` | Summary, criteria, and published grade. |
-| Pull revision work | `ClassForge: Create Revision Branch` | Creates a local branch for an open revision request. |
-| Open system | `ClassForge: Open Web Dashboard` | Opens `/projects/` in the browser. |
+| Push project | `ClassForge: Upload Project Files` | New saved version uploaded. |
+| Pull status | `ClassForge: Check Feedback` | Latest saved version and feedback status. |
+| Pull feedback | `ClassForge: View Feedback` | Summary, checklist, and shared grade. |
+| Pull requested changes | `ClassForge: Start Requested Changes` | Creates a local branch for an open change request. |
+| Open ClassForge | `ClassForge: Open ClassForge Website` | Opens `/projects/` in the browser. |
 
-Not supported: `git push` to ClassForge, `git pull`/clone of snapshots, or
-automatic branch push/PR creation. The server Git mirror is internal; your local
-workspace remains the source of truth.
+Not supported: `git push` to ClassForge, `git pull`/clone of saved versions, or
+automatic branch push/change-review creation. The server project history is
+internal; your local workspace remains the source of truth.
 
-The status bar shows the signed-in user and opens status when clicked.
+The status bar shows the signed-in user and opens feedback status when clicked.
 
 ## Commands
 
 | Command | Purpose |
 | --- | --- |
-| `ClassForge: Sign In` | Authenticate and store a server token in SecretStorage. |
-| `ClassForge: Sign Out` | Delete the local token. Revoke it separately in the web UI. |
+| `ClassForge: Sign In` | Sign in and store an access key in SecretStorage. |
+| `ClassForge: Sign Out` | Delete the local access key. Server-side key management is handled by an administrator. |
 | `ClassForge: Select Course` | Choose a visible course. |
 | `ClassForge: Select Assignment` | Choose a published assignment in the course. |
-| `ClassForge: Preview Submission Manifest` | Show files, sizes, SHA-256 checksums, and exclusions as JSON. |
-| `ClassForge: Submit Project Snapshot` | Collect, confirm, and upload files with progress/errors. |
-| `ClassForge: Check Assessment Status` | Show snapshot metadata and the latest assessment status. |
-| `ClassForge: Show Feedback` | Markdown view of summary, criteria, and the published grade (if any). |
-| `ClassForge: Create Revision Branch` | Pick an open revision request and create/check out a local branch. |
-| `ClassForge: Open Web Dashboard` | Open `/projects/` on the configured server. |
+| `ClassForge: Preview Files to Upload` | Show files, sizes, SHA-256 checksums, and exclusions as JSON. |
+| `ClassForge: Upload Project Files` | Collect, confirm, and upload files with progress/errors. |
+| `ClassForge: Check Feedback` | Show saved-version details and the latest feedback status. |
+| `ClassForge: View Feedback` | Markdown view of the summary, checklist, and shared grade (if any). |
+| `ClassForge: Start Requested Changes` | Pick an open change request and create/check out a local branch. |
+| `ClassForge: Open ClassForge Website` | Open `/projects/` on the configured server. |
 
 ## Settings
 
@@ -114,7 +115,7 @@ The status bar shows the signed-in user and opens status when clicked.
 
 Server-side limits still apply and win if they are stricter.
 
-## What gets submitted
+## What gets uploaded
 
 The extension mirrors the server policy:
 
@@ -130,26 +131,26 @@ A negation cannot re-include a mandatory secret/security path. The server
 re-applies all rules, so a modified extension cannot exfiltrate excluded files.
 
 Paths are normalised to POSIX relative paths; traversal and absolute paths are
-rejected. The manifest preview is generated locally with SHA-256 checksums.
+rejected. The preview file list is generated locally with SHA-256 checksums.
 
-## Revision workflow
+## Requested-changes workflow
 
-1. The instructor/TA creates a revision request in the web UI or API.
-2. In VS Code, run **ClassForge: Create Revision Branch**, choose the request,
+1. The teacher/TA creates a change request in the web app or API.
+2. In VS Code, run **ClassForge: Start Requested Changes**, choose the request,
    and commit your work on the created `revision/<project>-<title>` branch.
-3. Submit a new snapshot (it becomes a new immutable version).
-4. Open a pull request from the project page or API for instructor review.
+3. Upload your new files (they become a new saved version).
+4. Send the changes for review from the project page or API.
 
 Branch creation is local and does not push. The extension never force-pushes or
 rewrites Git history.
 
 ## Security
 
-- Passwords are used only to request a token and are never stored.
-- Tokens live in VS Code SecretStorage and are sent only as
+- Passwords are used only to request an access key and are never stored.
+- Access keys live in VS Code SecretStorage and are sent only as
   `Authorization: Bearer …` to `classforge.serverUrl`.
-- Tokens expire (`CLASSFORGE_TOKEN_TTL_DAYS`) and can be revoked at
-  `/projects/tokens/`.
+- Access keys expire (`CLASSFORGE_TOKEN_TTL_DAYS`) and can be turned off by an
+  administrator in Django admin or through the token revoke API.
 - Workspace files are read locally and uploaded only after an explicit
   confirmation dialog.
 - No workspace code is executed; `git` is invoked with fixed arguments (no
@@ -162,15 +163,16 @@ npm test
 ```
 
 This compiles TypeScript and runs Node's built-in test runner over
-`out/test/*.test.js`. Coverage includes the API client, exclusion/manifest
+`out/test/*.test.js`. Coverage includes the API client, exclusion/file-list
 logic, and Git branch helpers (including a real temporary repository). Tests use
 only Node built-ins and require `git` on `PATH` for the Git cases.
 
 ## Limitations
 
-- No push/PR creation from the extension; use the web app/API for pull requests.
+- No push/change-review creation from the extension; use the web app/API to send
+  changes for review.
 - No inline diff viewer/Source Control integration yet.
 - Feedback is rendered as a Markdown document, not a webview.
 - The extension is not published to the Marketplace; build/install locally.
-- Assessment output is a draft and may be produced by the deterministic local
-  inspector when the server has no AI key configured.
+- AI feedback is a suggestion and may come from the automatic checker when the
+  server has no AI key configured.

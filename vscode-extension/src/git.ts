@@ -1,5 +1,5 @@
 /**
- * Local Git helpers used by the "Create Revision Branch" command.
+ * Local Git helpers used by the "Start Requested Changes" command.
  *
  * Only local branch operations are performed.  Pushing and force-updating
  * branches require an explicit user action in the Git UI.

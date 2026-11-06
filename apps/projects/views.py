@@ -76,7 +76,7 @@ def _project_or_403(user, pk):
 
 def _require_grader(user, project):
     if not can_grade_course(user, project.assignment.course):
-        raise PermissionDenied('Only the instructor or a TA can do that.')
+        raise PermissionDenied('Only the teacher or a TA can do that.')
 
 
 @login_required(login_url='login')
@@ -163,14 +163,14 @@ def project_create(request, assignment_pk):
         can_grade_course(request.user, assignment.course)
         or assignment.course.enrollments.filter(student=request.user).exists()
     ):
-        raise PermissionDenied('Enroll in the course before creating a project.')
+        raise PermissionDenied('Join the course before creating a project.')
     project = services.create_project(
         assignment,
         request.user,
         title=request.POST.get('title', ''),
         description=request.POST.get('description', ''),
     )
-    messages.success(request, 'Project workspace is ready.')
+    messages.success(request, 'Project is ready.')
     log_activity(
         request,
         action='project.created',
@@ -194,7 +194,7 @@ def snapshot_detail(request, pk):
         project.student_id == request.user.id
         or can_grade_course(request.user, project.assignment.course)
     ):
-        raise PermissionDenied('You do not have access to this snapshot.')
+        raise PermissionDenied('You do not have access to this saved version.')
 
     previous = (
         ProjectSnapshot.objects.filter(
@@ -241,24 +241,24 @@ def snapshot_assess(request, pk):
         project.student_id == request.user.id
         or can_grade_course(request.user, project.assignment.course)
     ):
-        raise PermissionDenied('You do not have access to this snapshot.')
+        raise PermissionDenied('You do not have access to this saved version.')
     try:
         assessment = assessment_module.request_assessment(snapshot, request.user)
     except ValidationError as exc:
         messages.error(request, exc.messages[0])
     except Exception:
         logger.exception('Could not queue assessment for snapshot %s', snapshot.pk)
-        messages.error(request, 'The assessment could not be queued. Please try again.')
+        messages.error(request, 'Feedback could not be started. Please try again.')
     else:
         if assessment.status == Assessment.STATUS_COMPLETED:
-            messages.success(request, 'Assessment completed and ready for review.')
+            messages.success(request, 'Feedback is ready for review.')
         else:
-            messages.info(request, 'Assessment queued.')
+            messages.info(request, 'Feedback queued.')
         log_activity(
             request,
             action='assessment.requested',
             entity=assessment,
-            description=f'Assessment requested from the web UI for {snapshot}',
+            description=f'Feedback requested from the web UI for {snapshot}',
             metadata={
                 'course_id': project.assignment.course_id,
                 'project_id': project.pk,
@@ -279,7 +279,7 @@ def snapshot_compare(request, pk):
         project.student_id == request.user.id
         or can_grade_course(request.user, project.assignment.course)
     ):
-        raise PermissionDenied('You do not have access to this snapshot.')
+        raise PermissionDenied('You do not have access to this saved version.')
     base_id = request.GET.get('base')
     if base_id:
         base = get_object_or_404(ProjectSnapshot, pk=base_id, project=project)
@@ -380,7 +380,7 @@ def assessment_review(request, pk):
             except ValidationError as exc:
                 messages.error(request, exc.messages[0])
             else:
-                messages.success(request, 'Assessment re-queued for processing.')
+                messages.success(request, 'Feedback check queued again.')
             return redirect('projects:assessment_review', pk=assessment.pk)
         if action == 'apply':
             try:
@@ -390,9 +390,9 @@ def assessment_review(request, pk):
             else:
                 messages.success(
                     request,
-                    f'Assessment applied as an unpublished grade '
+                    f'Feedback used to create a grade that is not shared yet '
                     f'({grade.score}/{assessment.max_score}). '
-                    'Publish it from the grading page when ready.',
+                    'Share it from the grading page when ready.',
                 )
                 log_activity(
                     request,
@@ -430,20 +430,20 @@ def assessment_review(request, pk):
             except (ValidationError, InvalidOperation) as exc:
                 messages.error(request, getattr(exc, 'messages', [str(exc)])[0])
             else:
-                messages.success(request, 'Assessment review saved.')
+                messages.success(request, 'Feedback review saved.')
                 if action in ('approve', 'override'):
                     try:
                         grade, _ = services.apply_assessment(assessment, request.user)
                     except ValidationError as exc:
                         messages.warning(
                             request,
-                            f'Review saved, but the grade was not applied: {exc.messages[0]}',
+                            f'Review saved, but the grade could not be created: {exc.messages[0]}',
                         )
                     else:
                         messages.info(
                             request,
-                            f'Draft grade created ({grade.score}/{assessment.max_score}); '
-                            'it is not published until you publish it.',
+                            f'Grade created ({grade.score}/{assessment.max_score}); '
+                            'it is not shared until you share it.',
                         )
                 log_activity(
                     request,
@@ -490,7 +490,7 @@ def assessment_retry(request, pk):
     except ValidationError as exc:
         messages.error(request, exc.messages[0])
     else:
-        messages.success(request, 'Assessment re-queued.')
+        messages.success(request, 'Feedback check queued again.')
     return redirect('projects:assessment_review', pk=assessment.pk)
 
 
@@ -510,7 +510,7 @@ def revision_create(request, project_pk):
             services.notify(
                 project.student,
                 kind=Notification.KIND_REVISION,
-                title=f'Revision requested: {revision.title}',
+                title=f'Changes requested: {revision.title}',
                 body=revision.description[:1000],
                 url=f'/projects/{project.pk}/',
                 project=project,
@@ -520,10 +520,10 @@ def revision_create(request, project_pk):
                 request,
                 action='project.revision.requested',
                 entity=revision,
-                description=f'Revision requested for {project}',
+                description=f'Changes requested for {project}',
                 metadata={'course_id': project.assignment.course_id},
             )
-            messages.success(request, 'Revision request sent to the student.')
+            messages.success(request, 'Change request sent to the student.')
             return redirect('projects:project_detail', pk=project.pk)
     else:
         initial = {
@@ -550,14 +550,14 @@ def revision_update(request, pk):
     _require_grader(request.user, revision.project)
     status = request.POST.get('status', '')
     if status not in dict(RevisionRequest.STATUS_CHOICES):
-        messages.error(request, 'Invalid revision status.')
+        messages.error(request, 'Invalid change request status.')
     else:
         revision.status = status
         if status in (RevisionRequest.STATUS_ADDRESSED, RevisionRequest.STATUS_CLOSED):
             revision.resolved_by = request.user
             revision.resolved_at = timezone.now()
         revision.save()
-        messages.success(request, 'Revision request updated.')
+        messages.success(request, 'Change request updated.')
         log_activity(
             request,
             action=f'project.revision.{status}',
@@ -575,7 +575,7 @@ def pull_request_create(request, project_pk):
         project.student_id == request.user.id
         or can_grade_course(request.user, project.assignment.course)
     ):
-        raise PermissionDenied('Only the project owner or a grader can open a pull request.')
+        raise PermissionDenied('Only the project owner or a grader can send changes for review.')
     if request.method == 'POST':
         form = PullRequestForm(request.POST, project=project)
         if form.is_valid():
@@ -586,8 +586,8 @@ def pull_request_create(request, project_pk):
             services.notify_course_staff(
                 project.assignment,
                 kind=Notification.KIND_PULL_REQUEST,
-                title=f'Pull request #{pull_request.pk}: {pull_request.title}',
-                body=f'{project.student} requested a review.',
+                title=f'Change review #{pull_request.pk}: {pull_request.title}',
+                body=f'{project.student} sent changes for review.',
                 url=f'/projects/pull-requests/{pull_request.pk}/',
                 project=project,
                 snapshot=pull_request.source_snapshot,
@@ -596,10 +596,10 @@ def pull_request_create(request, project_pk):
                 request,
                 action='project.pull_request.created',
                 entity=pull_request,
-                description=f'Pull request created for {project}',
+                description=f'Changes sent for review for {project}',
                 metadata={'course_id': project.assignment.course_id},
             )
-            messages.success(request, 'Pull request created.')
+            messages.success(request, 'Changes sent for review.')
             return redirect('projects:pull_request_detail', pk=pull_request.pk)
     else:
         latest = project.latest_snapshot
@@ -631,7 +631,7 @@ def pull_request_detail(request, pk):
     project = pull_request.project
     is_grader = can_grade_course(request.user, project.assignment.course)
     if not (is_grader or project.student_id == request.user.id):
-        raise PermissionDenied('You do not have access to this pull request.')
+        raise PermissionDenied('You do not have access to this change review.')
     comment_form = CommentForm()
     if request.method == 'POST':
         action = request.POST.get('action', 'comment')
@@ -646,10 +646,10 @@ def pull_request_detail(request, pk):
                 messages.success(request, 'Comment added.')
                 return redirect('projects:pull_request_detail', pk=pull_request.pk)
         elif not is_grader:
-            raise PermissionDenied('Only a grader can review a pull request.')
+            raise PermissionDenied('Only a grader can review changes.')
         elif action == 'merge':
             if pull_request.status != PullRequest.STATUS_OPEN:
-                messages.error(request, 'This pull request is not open.')
+                messages.error(request, 'This change review is not open.')
             else:
                 merge_sha = services.git_merge(
                     project,
@@ -680,18 +680,18 @@ def pull_request_detail(request, pk):
                 services.notify(
                     project.student,
                     kind=Notification.KIND_PULL_REQUEST,
-                    title=f'Pull request merged: {pull_request.title}',
-                    body='Your changes were merged by the instructor.',
+                    title=f'Changes merged: {pull_request.title}',
+                    body='Your changes were merged by the teacher.',
                     url=f'/projects/pull-requests/{pull_request.pk}/',
                     project=project,
                 )
-                messages.success(request, 'Pull request merged.')
+                messages.success(request, 'Changes merged.')
             return redirect('projects:pull_request_detail', pk=pull_request.pk)
         elif action == 'close':
             pull_request.status = PullRequest.STATUS_CLOSED
             pull_request.reviewed_by = request.user
             pull_request.save(update_fields=['status', 'reviewed_by', 'updated_at'])
-            messages.info(request, 'Pull request closed.')
+            messages.info(request, 'Change review closed.')
             return redirect('projects:pull_request_detail', pk=pull_request.pk)
     return render(
         request,
@@ -731,45 +731,3 @@ def notification_list(request):
         {'notifications': page},
     )
 
-
-@login_required(login_url='login')
-def token_manage(request):
-    from .models import ApiToken
-
-    raw_token = None
-    if request.method == 'POST':
-        action = request.POST.get('action', 'create')
-        if action == 'revoke':
-            token = get_object_or_404(
-                ApiToken, pk=request.POST.get('token_id'), user=request.user
-            )
-            token.revoked_at = timezone.now()
-            token.save(update_fields=['revoked_at'])
-            messages.success(request, 'Token revoked.')
-            log_activity(
-                request,
-                action='api.token.revoked',
-                entity=token,
-                description='API token revoked from the web UI',
-            )
-            return redirect('projects:token_manage')
-        token, raw_token = ApiToken.issue(
-            request.user,
-            name=request.POST.get('name') or 'VS Code extension',
-        )
-        log_activity(
-            request,
-            action='api.token.created',
-            entity=token,
-            description='API token created from the web UI',
-        )
-        messages.warning(
-            request,
-            'Copy the token now — it is shown once and stored only as a hash.',
-        )
-    tokens = ApiToken.objects.filter(user=request.user).order_by('-created_at')[:50]
-    return render(
-        request,
-        'projects/tokens.html',
-        {'tokens': tokens, 'raw_token': raw_token},
-    )

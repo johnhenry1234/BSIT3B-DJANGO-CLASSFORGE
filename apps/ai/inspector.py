@@ -532,7 +532,7 @@ def local_suggestions(report, assignment):
 
     feedback_lines.append('')
     feedback_lines.append(
-        'This is an AI-assisted draft only. Final scores and comments must be reviewed by the instructor.'
+        'This is AI-assisted feedback only. The teacher must review the final score and comments.'
     )
 
     summary = (
@@ -559,7 +559,7 @@ def _criterion_comment(criterion, report):
         return 'No source code was detected; verify manually.'
     if report.get('issues'):
         return 'Automated inspection found items to verify: ' + report['issues'][0]['message']
-    return 'No automated anomaly detected; instructor review required.'
+    return 'No automatic problem detected; teacher review required.'
 
 
 def compact_report(report):

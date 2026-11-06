@@ -5,13 +5,13 @@
     <div class="row align-items-center">
       <div class="col">
         <div class="page-pretitle">ClassForge · Portfolio</div>
-        <h2 class="page-title mb-0">My Digital Portfolio</h2>
-        <div class="text-muted mt-1">Showcase published work. Visibility: {{ portfolio.get_visibility_display }}.</div>
+        <h2 class="page-title mb-0">My digital portfolio</h2>
+        <div class="text-muted mt-1">Showcase your shared work. Who can see it: {{ portfolio.get_visibility_display }}.</div>
       </div>
       <div class="col-auto ms-auto">
         <form method="POST" action="{% url 'portfolio:toggle_visibility' %}" class="d-inline">
           {% csrf_token %}
-          <button class="btn btn-outline-primary">Toggle Visibility</button>
+          <button class="btn btn-outline-primary">Change visibility</button>
         </form>
       </div>
     </div>
@@ -25,7 +25,7 @@
   {% endfor %}
 
   <div class="card mb-3">
-    <div class="card-header"><div class="card-title">Add Published Work</div></div>
+    <div class="card-header"><div class="card-title">Add shared work</div></div>
     <div class="table-responsive">
       <table class="table table-vcenter card-table">
         <thead><tr><th>Course</th><th>Assignment</th><th>Score</th><th></th></tr></thead>
@@ -38,12 +38,12 @@
           <td class="text-end">
             <form method="POST" action="{% url 'portfolio:add_from_grade' grade.id %}">
               {% csrf_token %}
-              <button class="btn btn-sm btn-primary">Add to Portfolio</button>
+              <button class="btn btn-sm btn-primary">Add to portfolio</button>
             </form>
           </td>
         </tr>
         {% empty %}
-        <tr><td colspan="4" class="text-muted">No published grades available yet.</td></tr>
+        <tr><td colspan="4" class="text-muted">No shared grades available yet.</td></tr>
         {% endfor %}
         </tbody>
       </table>

@@ -7,7 +7,7 @@
         <div class="col">
           <div class="page-pretitle">ClassForge · {{ course.code }}</div>
           <h2 class="page-title mb-0">{{ course.name }}</h2>
-          <div class="text-muted mt-1">Instructor: {{ course.instructor.get_full_name|default:course.instructor.username }}</div>
+          <div class="text-muted mt-1">Teacher: {{ course.instructor.get_full_name|default:course.instructor.username }}</div>
         </div>
         <div class="col-auto ms-auto">
           <div class="btn-list">
@@ -22,12 +22,12 @@
               {% if is_enrolled %}
               <form method="POST" action="{% url 'courses:course_unenroll' course.id %}" class="d-inline">
                 {% csrf_token %}
-                <button type="submit" class="btn btn-outline-danger">Unenroll</button>
+                <button type="submit" class="btn btn-outline-danger">Leave course</button>
               </form>
               {% else %}
               <form method="POST" action="{% url 'courses:course_enroll' course.id %}" class="d-inline">
                 {% csrf_token %}
-                <button type="submit" class="btn btn-primary">Enroll</button>
+                <button type="submit" class="btn btn-primary">Join course</button>
               </form>
               {% endif %}
             {% endif %}
@@ -53,7 +53,7 @@
 
   {% if can_manage and pending_count %}
   <div class="alert alert-warning" role="alert">
-    {{ pending_count }} submission{{ pending_count|pluralize }} awaiting grading.
+    {{ pending_count }} submission{{ pending_count|pluralize }} waiting to be graded.
   </div>
   {% endif %}
 
@@ -74,9 +74,9 @@
             <th>Title</th>
             <th>Category</th>
             <th>Due Date</th>
-            <th>Max Score</th>
-            {% if can_manage %}<th>Latest Submissions</th><th>Pending Grading</th>
-            {% else %}<th>My Versions</th><th>My Grade</th>{% endif %}
+            <th>Total points</th>
+            {% if can_manage %}<th>Latest submissions</th><th>Waiting to grade</th>
+            {% else %}<th>My submissions</th><th>My grade</th>{% endif %}
             <th class="w-1">Actions</th>
           </tr>
         </thead>
@@ -129,10 +129,10 @@
 
   {% if can_manage %}
   <div class="card mb-3">
-    <div class="card-header"><div class="card-title">Enrolled Students ({{ enrollments|length }})</div></div>
+    <div class="card-header"><div class="card-title">Students in this course ({{ enrollments|length }})</div></div>
     <div class="table-responsive">
       <table class="table table-vcenter card-table text-nowrap">
-        <thead><tr><th>Student</th><th>Enrolled</th></tr></thead>
+        <thead><tr><th>Student</th><th>Joined</th></tr></thead>
         <tbody>
         {% for e in enrollments %}
         <tr>
@@ -140,7 +140,7 @@
           <td class="text-muted">{{ e.enrolled_at|date:"M j, Y" }}</td>
         </tr>
         {% empty %}
-        <tr><td colspan="2" class="text-muted">No students enrolled yet.</td></tr>
+        <tr><td colspan="2" class="text-muted">No students have joined yet.</td></tr>
         {% endfor %}
         </tbody>
       </table>

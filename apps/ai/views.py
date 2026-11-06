@@ -17,7 +17,7 @@ from .services import apply_suggestions, request_evaluation
 
 def _require_grader(user, course):
     if not can_grade_course(user, course):
-        raise PermissionDenied('Only instructors and assigned TAs can evaluate this course.')
+        raise PermissionDenied('Only teachers and assigned TAs can evaluate this course.')
 
 
 @login_required(login_url='login')
@@ -31,14 +31,14 @@ def run_evaluation_view(request, submission_pk):
     if evaluation.status == AIEvaluation.STATUS_COMPLETED:
         messages.success(
             request,
-            f'AI draft ready: suggested {evaluation.suggested_score} / '
+            f'AI feedback ready: suggested {evaluation.suggested_score} / '
             f'{submission.assignment.max_score} with '
-            f'{evaluation.flags.count()} finding(s). Review it before saving.',
+            f'{evaluation.flags.count()} warning(s). Review it before using it.',
         )
     elif evaluation.status == AIEvaluation.STATUS_FAILED:
-        messages.error(request, f'AI draft failed: {evaluation.error}')
+        messages.error(request, f'AI feedback failed: {evaluation.error}')
     else:
-        messages.info(request, 'AI draft queued for background processing.')
+        messages.info(request, 'AI feedback queued for background processing.')
     return redirect('courses:submission_grade', pk=submission.pk)
 
 
@@ -67,7 +67,7 @@ def run_assignment_view(request, assignment_pk):
             queued += 1
     messages.success(
         request,
-        f'Queued AI drafts for {queued} latest submission(s). Existing drafts were left untouched.',
+        f'Queued AI feedback for {queued} latest submission(s). Existing feedback was left untouched.',
     )
     return redirect('courses:assignment_detail', pk=assignment.pk)
 
@@ -90,15 +90,15 @@ def apply_evaluation_view(request, pk):
         state = 'created' if created else 'updated'
         messages.success(
             request,
-            f'AI draft applied to the {state} draft grade. '
-            'The grade remains unpublished until you review and publish it.',
+            f'AI feedback used for the {state} grade. '
+            'The grade is not shared until you review and share it.',
         )
         log_activity(
             request,
             actor=request.user,
             action='ai.evaluation.reviewed',
             entity=evaluation,
-            description=f'Instructor opened AI-assisted grading for {evaluation.submission}',
+            description=f'Teacher opened AI-assisted grading for {evaluation.submission}',
             metadata={
                 'course_id': evaluation.submission.assignment.course_id,
                 'grade_id': grade.id,

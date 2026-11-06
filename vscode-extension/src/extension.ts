@@ -71,7 +71,7 @@ export function activate(context: vscode.ExtensionContext): void {
     }
     const username = context.globalState.get<string>('classforge.username', '');
     status.text = `$(cloud-upload) ClassForge${username ? `: ${username}` : ''}`;
-    status.tooltip = 'Submit a project snapshot or check assessment status.';
+    status.tooltip = 'Upload project files or check feedback.';
   };
 
   const reportError = async (error: unknown): Promise<void> => {
@@ -99,7 +99,7 @@ export function activate(context: vscode.ExtensionContext): void {
     const client = await authenticatedClient();
     const courses = await client.listCourses();
     if (!courses.length) {
-      throw new Error('You are not enrolled in any ClassForge course.');
+      throw new Error('You have not joined any ClassForge course.');
     }
     const picked = await vscode.window.showQuickPick(
       courses.map((course) => ({
@@ -128,7 +128,7 @@ export function activate(context: vscode.ExtensionContext): void {
     }
     const assignments = await client.listAssignments(courseId);
     if (!assignments.length) {
-      throw new Error('There are no published assignments in this course.');
+      throw new Error('There are no available assignments in this course.');
     }
     const picked = await vscode.window.showQuickPick(
       assignments.map((assignment) => ({
@@ -201,7 +201,7 @@ export function activate(context: vscode.ExtensionContext): void {
     }
     const password = await vscode.window.showInputBox({
       title: 'ClassForge sign in',
-      prompt: 'Your ClassForge password (stored only as a hashed server token)',
+      prompt: 'Your ClassForge password (never stored)',
       password: true,
       ignoreFocusOut: true,
     });
@@ -263,30 +263,35 @@ export function activate(context: vscode.ExtensionContext): void {
   let submitting = false;
   register('classforge.submitProject', async () => {
     if (submitting) {
-      await vscode.window.showWarningMessage('A ClassForge submission is already in progress.');
+      await vscode.window.showWarningMessage(
+        'Your files are still uploading. Please wait, then try again.',
+      );
       return;
     }
-    const prepared = await prepareSubmission();
-    const assignment = await prepared.client.assignmentDetail(prepared.assignmentId);
-    const choice = await vscode.window.showWarningMessage(
-      `Submit ${prepared.summary} for "${assignment.title}"?`,
-      { modal: true },
-      'Submit',
-    );
-    if (choice !== 'Submit') {
-      return;
-    }
-    const note = await vscode.window.showInputBox({
-      title: 'Submission note (optional)',
-      prompt: 'Describe what changed in this snapshot',
-      ignoreFocusOut: true,
-    });
+
+    // Hold the lock for the whole flow, including file collection and the
+    // confirmation prompt, so two command invocations cannot upload at once.
     submitting = true;
     try {
+      const prepared = await prepareSubmission();
+      const assignment = await prepared.client.assignmentDetail(prepared.assignmentId);
+      const choice = await vscode.window.showWarningMessage(
+        `Submit ${prepared.summary} for "${assignment.title}"?`,
+        { modal: true },
+        'Submit',
+      );
+      if (choice !== 'Submit') {
+        return;
+      }
+      const note = await vscode.window.showInputBox({
+        title: 'Note (optional)',
+        prompt: 'Describe what changed since the last saved version',
+        ignoreFocusOut: true,
+      });
       const result = await vscode.window.withProgress(
         {
           location: vscode.ProgressLocation.Notification,
-          title: 'Uploading ClassForge snapshot…',
+          title: 'Uploading project files…',
           cancellable: false,
         },
         async () =>
@@ -296,21 +301,25 @@ export function activate(context: vscode.ExtensionContext): void {
             createSubmission: true,
           }),
       );
+
+      // The upload is finished; release the lock before waiting for the user
+      // to dismiss the success notification or choose a follow-up action.
+      submitting = false;
       await context.workspaceState.update(SNAPSHOT_KEY, result.snapshot.id);
       await context.workspaceState.update(ASSIGNMENT_KEY, prepared.assignmentId);
       log(
-        `Submitted snapshot v${result.snapshot.version} (${result.snapshot.file_count} files)`,
+        `Uploaded saved version v${result.snapshot.version} (${result.snapshot.file_count} files)`,
       );
-      const actions = result.assessment ? ['Show Feedback', 'Check Status'] : ['Check Status'];
-      const message = `Snapshot v${result.snapshot.version} uploaded (${result.snapshot.file_count} files).${
+      const actions = result.assessment ? ['View Feedback', 'Check Feedback'] : ['Check Feedback'];
+      const message = `Saved version v${result.snapshot.version} uploaded (${result.snapshot.file_count} files).${
         result.assessment
-          ? ' An automated assessment draft is ready for instructor review.'
+          ? ' AI feedback is ready for your teacher to review.'
           : ''
       }`;
       const action = await vscode.window.showInformationMessage(message, ...actions);
-      if (action === 'Show Feedback') {
+      if (action === 'View Feedback') {
         await vscode.commands.executeCommand('classforge.showFeedback');
-      } else if (action === 'Check Status') {
+      } else if (action === 'Check Feedback') {
         await vscode.commands.executeCommand('classforge.checkStatus');
       }
     } finally {
@@ -327,7 +336,7 @@ export function activate(context: vscode.ExtensionContext): void {
     const projects = await client.listProjects();
     const withSnapshots = projects.filter((project) => project.latest_snapshot);
     if (!withSnapshots.length) {
-      throw new Error('No snapshots have been uploaded for your projects yet.');
+      throw new Error('No saved versions have been uploaded for your projects yet.');
     }
     const picked = await vscode.window.showQuickPick(
       withSnapshots.map((project) => ({
@@ -335,7 +344,7 @@ export function activate(context: vscode.ExtensionContext): void {
         description: `v${project.latest_snapshot!.version} · ${project.latest_snapshot!.file_count} files`,
         project,
       })),
-      { placeHolder: 'Select a project snapshot' },
+      { placeHolder: 'Select a saved version' },
     );
     if (!picked) {
       return undefined;
@@ -346,21 +355,21 @@ export function activate(context: vscode.ExtensionContext): void {
 
   const describeAssessment = (assessment: AssessmentSummary | null): string => {
     if (!assessment) {
-      return 'No assessment has been requested for this snapshot yet.';
+      return 'No feedback has been requested for this saved version yet.';
     }
     const lines = [
-      `- Status: **${assessment.status}** (engine: \`${assessment.engine}\`)`,
-      `- Review: **${assessment.review_status}**${assessment.requires_review ? ' — instructor review required' : ''}`,
+      `- Status: **${assessment.status}** (method: \`${assessment.engine}\`)`,
+      `- Review: **${assessment.review_status}**${assessment.requires_review ? ' — teacher review required' : ''}`,
       assessment.score !== null
-        ? `- Automated score: **${assessment.score} / ${assessment.max_score}**${
+        ? `- Suggested score: **${assessment.score} / ${assessment.max_score}**${
             assessment.instructor_score !== null
-              ? ` · instructor score: **${assessment.instructor_score}**`
+              ? ` · teacher score: **${assessment.instructor_score}**`
               : ''
           }`
-        : '- Automated score: not available',
+        : '- Suggested score: not available',
     ];
     if (assessment.model_name) {
-      lines.push(`- Engine label: \`${assessment.model_name}\``);
+      lines.push(`- Method: \`${assessment.model_name}\``);
     }
     if (assessment.error) {
       lines.push(`- Error: ${assessment.error}`);
@@ -376,18 +385,18 @@ export function activate(context: vscode.ExtensionContext): void {
     }
     const status = await client.snapshotStatus(snapshot.id);
     const markdown = [
-      `# ClassForge snapshot v${snapshot.version}`,
+      `# ClassForge saved version v${snapshot.version}`,
       '',
       `- Files: **${snapshot.file_count}** (${humanBytes(snapshot.total_bytes)})`,
       `- Checksum: \`${snapshot.checksum}\``,
       `- Branch: \`${snapshot.branch}\``,
-      `- Commit: \`${snapshot.commit_sha || 'not committed (Git disabled)'}\``,
+      `- Commit: \`${snapshot.commit_sha || 'not saved (Git disabled)'}\``,
       '',
-      '## Assessment',
+      '## Feedback',
       '',
       describeAssessment(status.assessment),
       '',
-      '> Automated results are drafts. Your instructor reviews and publishes the final grade.',
+      '> Automatic results are suggestions. Your teacher reviews and shares the final grade.',
     ].join('\n');
     const document = await vscode.workspace.openTextDocument({
       content: markdown,
@@ -406,7 +415,7 @@ export function activate(context: vscode.ExtensionContext): void {
     const assessment = feedback.assessment;
     const lines = [`# ClassForge feedback — v${snapshot.version}`, ''];
     if (!assessment) {
-      lines.push('No assessment has been requested for this snapshot yet.');
+      lines.push('No feedback has been requested for this saved version yet.');
     } else {
       lines.push(describeAssessment(assessment), '');
       if (assessment.summary) {
@@ -416,7 +425,7 @@ export function activate(context: vscode.ExtensionContext): void {
         lines.push('## Feedback', '', assessment.feedback, '');
       }
       if (assessment.criteria?.length) {
-        lines.push('## Rubric criteria', '', '| Criterion | Points | Comment |', '| --- | --- | --- |');
+        lines.push('## Grading checklist', '', '| Checklist item | Points | Comment |', '| --- | --- | --- |');
         for (const criterion of assessment.criteria) {
           const comment = (criterion.comment || '').replace(/\|/g, '\\|').replace(/\n/g, ' ');
           lines.push(
@@ -428,15 +437,15 @@ export function activate(context: vscode.ExtensionContext): void {
     }
     if (feedback.grade) {
       lines.push(
-        '## Published grade',
+        '## Shared grade',
         '',
         `- Score: **${feedback.grade.score} / ${feedback.grade.max_score}**`,
-        `- Published: **${feedback.grade.is_published ? 'yes' : 'not yet — instructor review pending'}**`,
+        `- Shared with you: **${feedback.grade.is_published ? 'yes' : 'not yet — waiting for teacher review'}**`,
         feedback.grade.feedback ? `- Feedback: ${feedback.grade.feedback}` : '',
       );
     } else {
       lines.push(
-        '> No grade has been published yet. An assessment draft does not count as a grade.',
+        '> No grade has been shared yet. AI feedback is not a grade.',
       );
     }
     const document = await vscode.workspace.openTextDocument({
@@ -457,14 +466,14 @@ export function activate(context: vscode.ExtensionContext): void {
     }
     const assignment = await client.assignmentDetail(assignmentId);
     if (!assignment.project) {
-      throw new Error('Upload a project snapshot before creating a revision branch.');
+      throw new Error('Upload project files before starting requested changes.');
     }
     const revisions = (await client.listRevisions(assignment.project.id)).filter(
       (revision) => revision.status === 'open',
     );
     if (!revisions.length) {
       await vscode.window.showInformationMessage(
-        'There are no open revision requests for this project.',
+        'There are no open change requests for this project.',
       );
       return;
     }
@@ -475,7 +484,7 @@ export function activate(context: vscode.ExtensionContext): void {
         detail: revision.description,
         revision,
       })),
-      { placeHolder: 'Select the revision request to work on' },
+      { placeHolder: 'Select the change request to work on' },
     );
     if (!picked) {
       return;
@@ -489,10 +498,10 @@ export function activate(context: vscode.ExtensionContext): void {
     );
     log(`Created revision branch ${branch}`);
     const action = await vscode.window.showInformationMessage(
-      `Created and checked out branch "${branch}". Commit your changes, then submit a new snapshot.`,
-      'Submit Snapshot',
+      `Created and checked out branch "${branch}". Commit your changes, then upload your new files.`,
+      'Upload Files',
     );
-    if (action === 'Submit Snapshot') {
+    if (action === 'Upload Files') {
       await vscode.commands.executeCommand('classforge.submitProject');
     }
   });

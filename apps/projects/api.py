@@ -326,7 +326,7 @@ def _snapshot_for_user(user, snapshot_id):
         user, project.assignment.course
     ):
         return snapshot
-    raise PermissionDenied('You do not have access to this snapshot.')
+    raise PermissionDenied('You do not have access to this saved version.')
 
 
 def _visible_projects(user):
@@ -419,7 +419,7 @@ def _client_ip(request):
 @require_http_methods(['GET', 'POST'])
 def token_list(request):
     if request.method == 'POST':
-        # Session-authenticated token creation from the web UI.
+        # Session-authenticated token creation.
         if not request.user.is_authenticated:
             return _error('Authentication required.', 401)
         token, raw = ApiToken.issue(request.user, name=request.POST.get('name') or 'Web-created token')
@@ -427,7 +427,7 @@ def token_list(request):
             actor=request.user,
             action='api.token.created',
             entity=token,
-            description='API token created from the web UI',
+            description='API token created from a signed-in session',
             request=request,
         )
         return _json(
@@ -742,7 +742,7 @@ def snapshot_diff(request, pk):
                 'base': None,
                 'target': _snapshot_summary(target),
                 'diff': None,
-                'message': 'This is the first snapshot; there is nothing to compare.',
+                'message': 'This is the first saved version; there is nothing to compare.',
             }
         )
     diff = services.diff_snapshots(base, target)
@@ -768,11 +768,11 @@ def assignment_submit(request, pk):
     )
     user = request.user
     if not _assignment_visible(user, assignment):
-        return _error('You are not enrolled in this course.', 403)
+        return _error('You have not joined this course.', 403)
     if assignment.status != Assignment.STATUS_PUBLISHED and not can_grade_course(
         user, assignment.course
     ):
-        return _error('This assignment is not published.', 403)
+        return _error('This assignment is not available.', 403)
 
     upload = request.FILES.get('archive')
     files = request.FILES.getlist('files') or request.FILES.getlist('files[]')
@@ -839,15 +839,15 @@ def assignment_submit(request, pk):
                 snapshot, user, note=note
             )
     except ValidationError as exc:
-        return _error(exc.messages[0] if exc.messages else 'Could not create snapshot.', 422)
+        return _error(exc.messages[0] if exc.messages else 'Could not save the version.', 422)
     except Exception:
         logger.exception('API snapshot upload failed')
-        return _error('Could not create the project snapshot.', 500)
+        return _error('Could not save the project version.', 500)
 
     services.notify_course_staff(
         assignment,
         kind=Notification.KIND_INFO,
-        title=f'New project snapshot from {user}',
+        title=f'New saved version from {user}',
         body=f'{assignment.title} · v{snapshot.version}',
         url=f'/projects/snapshots/{snapshot.pk}/',
         project=project,
@@ -857,7 +857,7 @@ def assignment_submit(request, pk):
         request,
         action='project.snapshot.created',
         entity=snapshot,
-        description=f'Uploaded project snapshot v{snapshot.version} for {assignment.title}',
+        description=f'Uploaded saved version v{snapshot.version} for {assignment.title}',
         metadata={
             'course_id': assignment.course_id,
             'assignment_id': assignment.id,
@@ -900,7 +900,7 @@ def snapshot_assess(request, pk):
     try:
         assessment = assessment_module.request_assessment(snapshot, request.user)
     except ValidationError as exc:
-        return _error(exc.messages[0] if exc.messages else 'Could not queue assessment.')
+        return _error(exc.messages[0] if exc.messages else 'Could not queue feedback.')
     return _json(
         {'ok': True, 'assessment': _assessment_payload(assessment)}, status=202
     )
@@ -960,14 +960,14 @@ def revision_list_by_project(request, project_id):
 def revision_create(request, project_id):
     project = _project_for_user(request.user, project_id)
     if not can_grade_course(request.user, project.assignment.course):
-        return _error('Only the instructor or a TA can request revisions.', 403)
+        return _error('Only the teacher or a TA can request changes.', 403)
     try:
         data = _body(request)
     except ValidationError as exc:
         return _error(exc.messages[0])
     title = str(data.get('title') or '').strip()
     if not title:
-        return _error('A revision request title is required.')
+        return _error('A change request title is required.')
     revision = RevisionRequest.objects.create(
         project=project,
         snapshot_id=data.get('snapshot_id') or None,
@@ -979,7 +979,7 @@ def revision_create(request, project_id):
     services.notify(
         project.student,
         kind=Notification.KIND_REVISION,
-        title=f'Revision requested: {revision.title}',
+        title=f'Changes requested: {revision.title}',
         body=revision.description[:1000],
         url=f'/projects/{project.pk}/',
         project=project,
@@ -989,7 +989,7 @@ def revision_create(request, project_id):
         request,
         action='project.revision.requested',
         entity=revision,
-        description=f'Revision requested for {project}',
+        description=f'Changes requested for {project}',
         metadata={
             'course_id': project.assignment.course_id,
             'project_id': project.pk,
@@ -1009,14 +1009,14 @@ def revision_update(request, pk):
     )
     project = revision.project
     if not can_grade_course(request.user, project.assignment.course):
-        return _error('Only the instructor or a TA can update revisions.', 403)
+        return _error('Only the teacher or a TA can update change requests.', 403)
     try:
         data = _body(request)
     except ValidationError as exc:
         return _error(exc.messages[0])
     status = str(data.get('status') or '').strip()
     if status not in dict(RevisionRequest.STATUS_CHOICES):
-        return _error('Invalid revision status.')
+        return _error('Invalid change request status.')
     revision.status = status
     if status in (RevisionRequest.STATUS_ADDRESSED, RevisionRequest.STATUS_CLOSED):
         revision.resolved_by = request.user
@@ -1026,8 +1026,8 @@ def revision_update(request, pk):
         services.notify(
             project.student,
             kind=Notification.KIND_REVISION,
-            title=f'Revision addressed: {revision.title}',
-            body='Your instructor marked this revision request as addressed.',
+            title=f'Changes addressed: {revision.title}',
+            body='Your teacher marked this change request as addressed.',
             url=f'/projects/{project.pk}/',
             project=project,
         )
@@ -1103,14 +1103,14 @@ def pull_request_create(request, project_id):
     latest = project.latest_snapshot
     snapshot_id = data.get('source_snapshot_id') or (latest.pk if latest else None)
     if snapshot_id is None:
-        return _error('Upload a project snapshot before opening a pull request.')
+        return _error('Upload project files before sending changes for review.')
     try:
         snapshot = project.snapshots.get(pk=snapshot_id)
     except ProjectSnapshot.DoesNotExist:
-        return _error('Source snapshot not found.', 404)
+        return _error('Saved version not found.', 404)
     title = str(data.get('title') or '').strip()
     if not title:
-        return _error('A pull-request title is required.')
+        return _error('A change review title is required.')
     pull_request = PullRequest.objects.create(
         project=project,
         title=title[:255],
@@ -1124,8 +1124,8 @@ def pull_request_create(request, project_id):
     services.notify_course_staff(
         project.assignment,
         kind=Notification.KIND_PULL_REQUEST,
-        title=f'Pull request #{pull_request.pk}: {pull_request.title}',
-        body=f'{project.student} requested a review.',
+        title=f'Change review #{pull_request.pk}: {pull_request.title}',
+        body=f'{project.student} sent changes for review.',
         url=f'/projects/pull-requests/{pull_request.pk}/',
         project=project,
         snapshot=snapshot,
@@ -1134,7 +1134,7 @@ def pull_request_create(request, project_id):
         request,
         action='project.pull_request.created',
         entity=pull_request,
-        description=f'Pull request created for {project}',
+        description=f'Changes sent for review for {project}',
         metadata={
             'course_id': project.assignment.course_id,
             'project_id': project.pk,
@@ -1169,7 +1169,7 @@ def pull_request_action(request, pk):
             project.student_id == request.user.id
             or can_grade_course(request.user, project.assignment.course)
         ):
-            return _error('You cannot comment on this pull request.', 403)
+            return _error('You cannot comment on this change review.', 403)
         comment = PullRequestComment.objects.create(
             pull_request=pull_request, author=request.user, body=body[:10_000]
         )
@@ -1177,10 +1177,10 @@ def pull_request_action(request, pk):
             {'ok': True, 'comment': {'id': comment.id, 'body': comment.body}}
         )
     if not can_grade_course(request.user, project.assignment.course):
-        return _error('Only the instructor or a TA can review pull requests.', 403)
+        return _error('Only the teacher or a TA can review changes.', 403)
     if action == 'merge':
         if pull_request.status != PullRequest.STATUS_OPEN:
-            return _error('This pull request is not open.')
+            return _error('This change review is not open.')
         merge_sha = services.git_merge(
             project, pull_request.source_branch, pull_request.target_branch
         )
@@ -1206,8 +1206,8 @@ def pull_request_action(request, pk):
         services.notify(
             project.student,
             kind=Notification.KIND_PULL_REQUEST,
-            title=f'Pull request merged: {pull_request.title}',
-            body='Your changes were merged by the instructor.',
+            title=f'Changes merged: {pull_request.title}',
+            body='Your changes were merged by the teacher.',
             url=f'/projects/pull-requests/{pull_request.pk}/',
             project=project,
         )
@@ -1215,7 +1215,7 @@ def pull_request_action(request, pk):
             request,
             action='project.pull_request.merged',
             entity=pull_request,
-            description=f'Pull request merged for {project}',
+            description=f'Changes merged for {project}',
             metadata={
                 'course_id': project.assignment.course_id,
                 'project_id': project.pk,
@@ -1228,13 +1228,13 @@ def pull_request_action(request, pk):
         services.notify(
             project.student,
             kind=Notification.KIND_PULL_REQUEST,
-            title=f'Pull request closed: {pull_request.title}',
-            body=str(data.get('reason') or 'The instructor closed this pull request.'),
+            title=f'Change review closed: {pull_request.title}',
+            body=str(data.get('reason') or 'The teacher closed this change review.'),
             url=f'/projects/pull-requests/{pull_request.pk}/',
             project=project,
         )
     else:
-        return _error('Unknown pull-request action.')
+        return _error('Unknown change review action.')
     return _json({'ok': True, 'pull_request': _pull_request_payload(pull_request)})
 
 

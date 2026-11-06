@@ -47,8 +47,8 @@ Authorization: Bearer cf_…
 - Revoked/expired tokens and inactive users are rejected.
 - Per-token and per-IP rate limits apply (`CLASSFORGE_API_RATE_LIMIT` per
   `CLASSFORGE_API_RATE_WINDOW` seconds). Exceeding the limit returns `429`.
-- Token list/revoke endpoints are session-authenticated (web UI); token creation
-  accepts either a session or username/password.
+- Token list/revoke endpoints are session-authenticated; token creation accepts
+  either a session or username/password.
 
 ## Response conventions
 
@@ -72,7 +72,7 @@ Authorization: Bearer cf_…
 | Method | Path | Description |
 | --- | --- | --- |
 | `GET` | `/auth/tokens/` | List up to 50 tokens for the signed-in user. |
-| `POST` | `/auth/tokens/` | Create a token from the web session (`name` form field). Raw token returned once. |
+| `POST` | `/auth/tokens/` | Create a token from a signed-in session (`name` form field). Raw token returned once. |
 | `POST` | `/auth/tokens/{id}/revoke/` | Revoke one of the signed-in user's tokens. |
 
 ### Identity and courses (`read`)

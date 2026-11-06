@@ -80,7 +80,7 @@ def request_assessment(snapshot, requested_by=None, *, dispatch=True):
         actor=requested_by,
         action='assessment.requested',
         entity=assessment,
-        description=f'Project assessment requested for {snapshot}',
+        description=f'Project feedback requested for {snapshot}',
         metadata={
             'course_id': assignment.course_id,
             'assignment_id': assignment.id,
@@ -126,7 +126,7 @@ def _thread_target(assessment_id):
 
 def retry_assessment(assessment, requested_by=None):
     if assessment.status not in (Assessment.STATUS_FAILED, Assessment.STATUS_QUEUED):
-        raise ValidationError('Only queued or failed assessments can be retried.')
+        raise ValidationError('Only queued or failed feedback checks can be tried again.')
     assessment.status = Assessment.STATUS_QUEUED
     assessment.error = ''
     if requested_by is not None:
@@ -154,7 +154,7 @@ def run_assessment(assessment_id):
     assignment = assessment.snapshot.project.assignment
     if assessment.attempts >= int(getattr(settings, 'ASSESSMENT_MAX_ATTEMPTS', 3)):
         assessment.status = Assessment.STATUS_FAILED
-        assessment.error = 'Maximum assessment attempts reached.'
+        assessment.error = 'Maximum feedback attempts reached.'
         assessment.completed_at = timezone.now()
         assessment.save(update_fields=['status', 'error', 'completed_at'])
         return assessment
@@ -255,7 +255,7 @@ def run_assessment(assessment_id):
             actor=assessment.requested_by,
             action='assessment.completed',
             entity=assessment,
-            description=f'Assessment completed for {assessment.snapshot}',
+            description=f'Feedback completed for {assessment.snapshot}',
             metadata={
                 'course_id': assignment.course_id,
                 'assignment_id': assignment.id,
@@ -278,7 +278,7 @@ def run_assessment(assessment_id):
             actor=assessment.requested_by,
             action='assessment.failed',
             entity=assessment,
-            description=f'Assessment failed for {assessment.snapshot}',
+            description=f'Feedback failed for {assessment.snapshot}',
             metadata={'error': assessment.error[:500]},
         )
         return assessment
@@ -318,7 +318,7 @@ def run_checks(assignment, snapshot, artifacts):
                 f'required_file:{requirement}',
                 f'Required file: {requirement}',
                 CHECK_PASS if found else CHECK_FAIL,
-                'Present in the snapshot.' if found else 'Not found in the snapshot.',
+                'Present in the saved version.' if found else 'Not found in the saved version.',
                 requirement,
             )
         )
@@ -372,7 +372,7 @@ def run_checks(assignment, snapshot, artifacts):
     checks.append(
         _check(
             'secrets',
-            'No secrets in the snapshot',
+            'No secrets in the saved version',
             CHECK_FAIL if secrets else CHECK_PASS,
             (
                 f'{len(secrets)} possible secret(s) detected.'
@@ -732,7 +732,7 @@ def local_assessment(assignment, artifacts, checks, criteria):
         )
 
     feedback_lines = [
-        'Automated project assessment draft.',
+        'Automatic project feedback.',
         '',
         f'Files inspected: {overview["files"]} '
         f'({overview["code_files"]} code, {overview["documentation_files"]} documentation).',
@@ -748,14 +748,14 @@ def local_assessment(assignment, artifacts, checks, criteria):
         feedback_lines.extend(f'• {item["label"]}: {item["message"]}' for item in failed[:10])
     if criterion_results:
         feedback_lines.append('')
-        feedback_lines.append('Rubric draft:')
+        feedback_lines.append('Grading checklist:')
         for item in criterion_results:
             feedback_lines.append(
                 f'• {item["name"]}: {item["points"]}/{item["max_points"]} — {item["comment"]}'
             )
     feedback_lines.append('')
     feedback_lines.append(
-        'This is an automated draft. The instructor must review, adjust and publish the final grade.'
+        'This is automatic feedback. The teacher must review, adjust and share the final grade.'
     )
 
     summary = (
@@ -1054,11 +1054,11 @@ def _notify_completed(assessment):
     services.notify(
         student,
         kind=Notification.KIND_ASSESSMENT,
-        title=f'Assessment ready for {assignment.title}',
+        title=f'Feedback ready for {assignment.title}',
         body=(
-            f'Snapshot v{snapshot.version}: '
+            f'Saved version v{snapshot.version}: '
             f'{assessment.overall_score}/{assessment.max_score}. '
-            'This is a draft until your instructor reviews it.'
+            'This is a draft until your teacher reviews it.'
         ),
         url=f'/projects/snapshots/{snapshot.pk}/',
         project=project,
@@ -1073,8 +1073,8 @@ def _notify_completed(assessment):
             services.notify(
                 user,
                 kind=Notification.KIND_ASSESSMENT,
-                title=f'Assessment needs review: {student}',
-                body=f'{assignment.title} · snapshot v{snapshot.version}',
+                title=f'Feedback needs review: {student}',
+                body=f'{assignment.title} · saved version v{snapshot.version}',
                 url=f'/projects/assessments/{assessment.pk}/review/',
                 project=project,
                 snapshot=snapshot,

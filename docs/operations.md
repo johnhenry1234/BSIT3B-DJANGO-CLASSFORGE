@@ -117,7 +117,6 @@ python manage.py runserver
 - Projects: <http://127.0.0.1:8000/projects/>
 - Assessment queue: <http://127.0.0.1:8000/projects/assessments/>
 - API health: <http://127.0.0.1:8000/api/v1/health/>
-- API tokens: <http://127.0.0.1:8000/projects/tokens/>
 
 In production run `python manage.py collectstatic`, serve `STATIC_ROOT`/media
 through the web server, and put Django behind HTTPS.

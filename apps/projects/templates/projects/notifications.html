@@ -7,7 +7,7 @@
         <div class="col">
           <div class="page-pretitle">ClassForge · Notifications</div>
           <h2 class="page-title mb-0">Notifications</h2>
-          <div class="text-muted mt-1">Assessment results, revision requests and pull-request activity.</div>
+          <div class="text-muted mt-1">Feedback, change requests and review activity.</div>
         </div>
         <div class="col-auto ms-auto">
           <div class="btn-list">
@@ -52,7 +52,7 @@
             </div>
             {% if notification.body %}<div class="text-muted small">{{ notification.body|truncatechars:240 }}</div>{% endif %}
             <div class="mt-1 d-flex align-items-center gap-2">
-              <span class="badge bg-secondary-lt text-secondary">{{ notification.get_kind_display }}</span>
+              <span class="badge bg-secondary-lt text-secondary">{% if notification.kind == 'assessment' %}Feedback{% elif notification.kind == 'revision' %}Change request{% elif notification.kind == 'pull_request' %}Change review{% elif notification.kind == 'grade' %}Grade{% else %}Information{% endif %}</span>
               {% if not notification.is_read %}
               <form method="POST" class="d-inline">
                 {% csrf_token %}

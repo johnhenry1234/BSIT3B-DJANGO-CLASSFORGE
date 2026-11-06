@@ -13,7 +13,7 @@ from .models import Portfolio, PortfolioItem
 @login_required(login_url='login')
 def my_portfolio(request):
     if not is_student(request.user):
-        messages.info(request, 'Portfolios are designed for students.')
+        messages.info(request, 'Portfolios are for students.')
         return redirect('dashboard')
 
     portfolio, _ = Portfolio.objects.get_or_create(student=request.user)
@@ -62,7 +62,7 @@ def add_from_grade(request, grade_pk):
     )
     portfolio, _ = Portfolio.objects.get_or_create(student=request.user)
     if portfolio.items.filter(grade=grade).exists():
-        messages.info(request, 'That published assignment is already in your portfolio.')
+        messages.info(request, 'That shared assignment is already in your portfolio.')
         return redirect('portfolio:my_portfolio')
 
     title = f"{grade.submission.assignment.title} ({grade.submission.assignment.course.code})"
@@ -76,7 +76,7 @@ def add_from_grade(request, grade_pk):
         description=description,
         skills=skills,
     )
-    messages.success(request, 'Published assignment added to your portfolio.')
+    messages.success(request, 'Shared assignment added to your portfolio.')
     return redirect('portfolio:my_portfolio')
 
 

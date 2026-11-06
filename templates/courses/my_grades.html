@@ -6,8 +6,8 @@
       <div class="row align-items-center">
         <div class="col">
           <div class="page-pretitle">ClassForge</div>
-          <h2 class="page-title mb-0">My Grades</h2>
-          <div class="text-muted mt-1">Only published grades are shown.</div>
+          <h2 class="page-title mb-0">My grades</h2>
+          <div class="text-muted mt-1">Only grades shared with you are shown.</div>
         </div>
       </div>
     </div>
@@ -32,7 +32,7 @@
           <td class="text-muted">{{ grade.graded_at|date:"M j, Y" }}</td>
         </tr>
         {% empty %}
-        <tr><td colspan="6"><div class="empty py-4"><p class="empty-title">No published grades yet</p></div></td></tr>
+        <tr><td colspan="6"><div class="empty py-4"><p class="empty-title">No shared grades yet</p></div></td></tr>
         {% endfor %}
         </tbody>
       </table>

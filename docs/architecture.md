@@ -29,7 +29,7 @@ separate TypeScript package under `vscode-extension/`.
 | `apps.projects` | Student project workspaces, immutable snapshots, server-owned Git mirrors, revision requests, pull requests, assessment drafts, criterion scores, notifications, API tokens. |
 | `apps.ai` | Legacy AI evaluation inspector used by the original submission flow. |
 | `apps.projects.api` | Bearer-token JSON API v1 consumed by the extension. |
-| `apps.projects.views` | Instructor/student web UI for projects, assessment review, revisions, pull requests, notifications, tokens. |
+| `apps.projects.views` | Instructor/student web UI for projects, assessment review, revisions, pull requests, and notifications. |
 | `vscode-extension` | Workspace file collection, snapshot upload, status/feedback display, revision branch creation. |
 
 ### Why a separate app?

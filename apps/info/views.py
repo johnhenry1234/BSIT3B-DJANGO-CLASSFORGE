@@ -138,7 +138,7 @@ def student_detail(request, pk):
     )
     if not enrollments.exists():
         raise PermissionDenied(
-            'You can only view students enrolled in your courses.'
+            'You can only view students who joined your courses.'
         )
 
     # Imported lazily so the info app does not depend on project models at

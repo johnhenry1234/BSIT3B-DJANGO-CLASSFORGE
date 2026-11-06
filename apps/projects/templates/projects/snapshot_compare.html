@@ -7,13 +7,13 @@
         <div class="col">
           <div class="page-pretitle"><a href="{% url 'projects:project_detail' project.id %}" class="text-muted">{{ project.title|default:project.assignment.title }}</a> · Comparison</div>
           <h2 class="page-title mb-0">
-            {% if base %}v{{ base.version }} → v{{ target.version }}{% else %}Snapshot v{{ target.version }}{% endif %}
+            {% if base %}v{{ base.version }} → v{{ target.version }}{% else %}Saved version v{{ target.version }}{% endif %}
           </h2>
-          <div class="text-muted mt-1">Manifest comparison and text diffs generated server-side from immutable snapshots.</div>
+          <div class="text-muted mt-1">File list and text changes generated from saved versions.</div>
         </div>
         <div class="col-auto ms-auto">
           <div class="btn-list">
-            <a href="{% url 'projects:snapshot_detail' target.id %}" class="btn btn-ghost-secondary">Back to snapshot</a>
+            <a href="{% url 'projects:snapshot_detail' target.id %}" class="btn btn-ghost-secondary">Back to saved version</a>
             <a href="{% url 'projects:project_detail' project.id %}" class="btn btn-outline-secondary">Project</a>
           </div>
         </div>
@@ -86,7 +86,7 @@
         <tr><td><span class="badge bg-danger-lt text-danger">Removed</span></td><td><code>{{ item.path }}</code></td><td class="text-end text-muted">{{ item.size|filesizeformat }}</td></tr>
         {% endfor %}
         {% if not diff.added and not diff.modified and not diff.removed %}
-        <tr><td colspan="3" class="text-muted">No manifest changes.</td></tr>
+        <tr><td colspan="3" class="text-muted">No file changes.</td></tr>
         {% endif %}
         </tbody>
       </table>
@@ -111,7 +111,7 @@
   <div class="empty">
     <div class="empty-icon"><i class="fas fa-code-compare fa-2x text-muted"></i></div>
     <p class="empty-title">Nothing to compare</p>
-    <p class="empty-subtitle text-muted">This is the first snapshot for the project.</p>
+    <p class="empty-subtitle text-muted">This is the first saved version for the project.</p>
   </div>
   {% endif %}
 </div>

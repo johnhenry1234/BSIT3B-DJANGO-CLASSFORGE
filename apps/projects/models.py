@@ -187,7 +187,7 @@ class ProjectSnapshot(models.Model):
     def save(self, *args, **kwargs):
         if not self._state.adding:
             raise ValidationError(
-                'Project snapshots are immutable. Create a new snapshot instead.'
+                'Saved versions cannot be changed. Upload a new version instead.'
             )
         if not self.checksum and self.archive:
             self.checksum = self.calculate_checksum()

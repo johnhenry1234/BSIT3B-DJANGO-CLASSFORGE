@@ -60,19 +60,19 @@ def _can_manage_course(user, course):
 
 def _require_manage_course(user, course):
     if not can_manage_course(user, course):
-        raise PermissionDenied('Only the course instructor can do that.')
+        raise PermissionDenied('Only the course teacher can do that.')
 
 
 def _require_grader(user, course):
     if not can_grade_course(user, course):
         raise PermissionDenied(
-            'Only instructors, teaching assistants, or administrators can grade this course.'
+            'Only teachers, teaching assistants, or administrators can grade this course.'
         )
 
 
 def _require_instructor(user):
     if not is_instructor(user):
-        raise PermissionDenied('Only instructors can do that.')
+        raise PermissionDenied('Only teachers can do that.')
 
 
 def _set_assignment_timestamps(assignment):
@@ -273,22 +273,22 @@ def course_delete(request, pk):
 def course_enroll(request, pk):
     course = get_object_or_404(Course, pk=pk)
     if is_instructor(request.user) or is_teaching_assistant(request.user):
-        messages.error(request, 'Instructors and TAs cannot enroll as students.')
+        messages.error(request, 'Teachers and TAs cannot join a course as students.')
         return redirect('courses:course_detail', pk=pk)
     _, created = Enrollment.objects.get_or_create(
         course=course, student=request.user
     )
     if created:
-        messages.success(request, f'Enrolled in {course.code} successfully.')
+        messages.success(request, f'Joined {course.code} successfully.')
         log_activity(
             request,
             action='course.enrolled',
             entity=course,
-            description=f'Enrolled in {course.code}',
+            description=f'Joined {course.code}',
             metadata={'course_id': course.id},
         )
     else:
-        messages.info(request, f'You are already enrolled in {course.code}.')
+        messages.info(request, f'You have already joined {course.code}.')
     return redirect('courses:course_detail', pk=pk)
 
 
@@ -297,7 +297,7 @@ def course_enroll(request, pk):
 def course_unenroll(request, pk):
     course = get_object_or_404(Course, pk=pk)
     Enrollment.objects.filter(course=course, student=request.user).delete()
-    messages.success(request, f'Unenrolled from {course.code}.')
+    messages.success(request, f'Left {course.code}.')
     return redirect('courses:course_detail', pk=pk)
 
 
@@ -444,10 +444,10 @@ def submission_create(request, pk):
     )
     course = assignment.course
     if can_grade_course(request.user, course) or is_instructor(request.user):
-        messages.error(request, 'Instructors and TAs cannot submit assignments.')
+        messages.error(request, 'Teachers and TAs cannot submit assignments.')
         return redirect('courses:assignment_detail', pk=pk)
     if not course.enrollments.filter(student=request.user).exists():
-        messages.error(request, 'Enroll in the course before submitting.')
+        messages.error(request, 'Join the course before submitting.')
         return redirect('courses:course_detail', pk=course.pk)
 
     if request.method == 'POST':
@@ -511,12 +511,13 @@ def grade_publish_toggle(request, pk):
         ]
     )
     state = 'published' if grade.is_published else 'unpublished'
-    messages.success(request, f'Grade {state} successfully.')
+    message = 'Grade shared with the student.' if grade.is_published else 'Grade is no longer shared.'
+    messages.success(request, message)
     log_activity(
         request,
         action=f'grade.{state}',
         entity=grade,
-        description=f'Grade {state} for {grade.submission}',
+        description=(f'Shared grade for {grade.submission}' if grade.is_published else f'Stopped sharing grade for {grade.submission}'),
         metadata={'course_id': grade.submission.assignment.course_id},
     )
     return redirect(
@@ -607,7 +608,7 @@ def student_history(request):
 @login_required(login_url='login')
 def grading_queue(request):
     if not can_grade(request.user):
-        raise PermissionDenied('Only instructors and TAs can access the grading queue.')
+        raise PermissionDenied('Only teachers and TAs can access submissions to grade.')
 
     courses = []
     if request.user.is_superuser:
@@ -724,7 +725,7 @@ def assignment_rubric(request, pk):
     _require_manage_course(request.user, assignment.course)
     rubric, _ = Rubric.objects.get_or_create(
         assignment=assignment,
-        defaults={'title': f'{assignment.title} Rubric'},
+        defaults={'title': f'{assignment.title} grading checklist'},
     )
 
     if request.method == 'POST':
@@ -733,37 +734,37 @@ def assignment_rubric(request, pk):
             form = RubricForm(request.POST, instance=rubric)
             if form.is_valid():
                 form.save()
-                messages.success(request, 'Rubric details saved.')
+                messages.success(request, 'Grading checklist saved.')
             else:
-                messages.error(request, 'Please fix the errors in the rubric form.')
+                messages.error(request, 'Please fix the errors in the checklist form.')
         elif action == 'add_criterion':
             form = RubricCriterionForm(request.POST)
             if form.is_valid():
                 criterion = form.save(commit=False)
                 criterion.rubric = rubric
                 criterion.save()
-                messages.success(request, 'Rubric criterion added.')
+                messages.success(request, 'Checklist item added.')
                 log_activity(
                     request,
                     action='rubric.criterion_added',
                     entity=rubric,
-                    description=f'Added "{criterion.name}" to rubric for {assignment.title}',
+                    description=f'Added "{criterion.name}" to the checklist for {assignment.title}',
                     metadata={'course_id': assignment.course_id},
                 )
             else:
-                messages.error(request, 'Please fix the errors in the criterion form.')
+                messages.error(request, 'Please fix the errors in the checklist item form.')
         elif action == 'delete_criterion':
             criterion = get_object_or_404(
                 RubricCriterion, pk=request.POST.get('criterion_id'), rubric=rubric
             )
             name = criterion.name
             criterion.delete()
-            messages.success(request, f'"{name}" removed from the rubric.')
+            messages.success(request, f'"{name}" removed from the grading checklist.')
             log_activity(
                 request,
                 action='rubric.criterion_deleted',
                 entity=rubric,
-                description=f'Removed "{name}" from rubric for {assignment.title}',
+                description=f'Removed "{name}" from the checklist for {assignment.title}',
                 metadata={'course_id': assignment.course_id},
             )
         elif action == 'publish_rubric':
@@ -774,11 +775,11 @@ def assignment_rubric(request, pk):
                     rubric, request.user, request.POST.get('notes', '')
                 )
             except Exception as exc:
-                messages.error(request, f'Could not publish the rubric: {exc}')
+                messages.error(request, f'Could not save the checklist version: {exc}')
             else:
                 messages.success(
                     request,
-                    f'Rubric version {version.version} published with '
+                    f'Grading checklist version {version.version} saved with '
                     f'{version.total_points} total points.',
                 )
                 log_activity(
@@ -786,7 +787,7 @@ def assignment_rubric(request, pk):
                     action='rubric.published',
                     entity=version,
                     description=(
-                        f'Published rubric v{version.version} for {assignment.title}'
+                        f'Saved checklist v{version.version} for {assignment.title}'
                     ),
                     metadata={
                         'course_id': assignment.course_id,
@@ -824,16 +825,16 @@ def grade_publish(request, pk):
         grade.published_at = timezone.now()
         grade.published_by = request.user
         grade.save(update_fields=['is_published', 'published_at', 'published_by', 'graded_at'])
-        messages.success(request, 'Grade published successfully.')
+        messages.success(request, 'Grade shared with the student.')
         log_activity(
             request,
             action='grade.published',
             entity=grade,
-            description=f'Published grade for {grade.submission}',
+            description=f'Shared grade for {grade.submission}',
             metadata={'course_id': grade.submission.assignment.course_id},
         )
     else:
-        messages.info(request, 'Grade is already published.')
+        messages.info(request, 'This grade is already shared with the student.')
     return redirect('courses:assignment_detail', pk=grade.submission.assignment_id)
 
 
@@ -849,16 +850,16 @@ def grade_unpublish(request, pk):
         grade.published_at = None
         grade.published_by = None
         grade.save(update_fields=['is_published', 'published_at', 'published_by', 'graded_at'])
-        messages.success(request, 'Grade unpublished successfully.')
+        messages.success(request, 'Grade is no longer shared with the student.')
         log_activity(
             request,
             action='grade.unpublished',
             entity=grade,
-            description=f'Unpublished grade for {grade.submission}',
+            description=f'Stopped sharing grade for {grade.submission}',
             metadata={'course_id': grade.submission.assignment.course_id},
         )
     else:
-        messages.info(request, 'Grade is already a draft.')
+        messages.info(request, 'This grade is already not shared.')
     return redirect('courses:assignment_detail', pk=grade.submission.assignment_id)
 
 
@@ -885,15 +886,15 @@ def grade_publish_batch(request):
             request,
             action='grade.published',
             entity=grade,
-            description=f'Batch-published grade for {grade.submission}',
+            description=f'Shared grade in batch for {grade.submission}',
             metadata={'course_id': grade.submission.assignment.course_id},
         )
         published += 1
 
     if published:
-        messages.success(request, f'Published {published} grade(s) in batch.')
+        messages.success(request, f'Shared {published} grade(s).')
     else:
-        messages.info(request, 'No eligible draft grades were published.')
+        messages.info(request, 'No grades were ready to share.')
     return redirect('courses:grading_queue')
 
 
@@ -978,7 +979,7 @@ def submission_grade(request, pk):
                     request,
                     f'Graded v{submission.version} '
                     f'({grade.score}/{submission.assignment.max_score}). '
-                    f'{"Published" if grade.is_published else "Saved as draft"}.',
+                    f'{"Shared with the student" if grade.is_published else "Not shared yet"}.',
                 )
                 log_activity(
                     request,
@@ -1034,16 +1035,16 @@ def add_annotation(request, pk):
         annotation.grade = grade
         annotation.author = request.user
         annotation.save()
-        messages.success(request, 'Feedback annotation added.')
+        messages.success(request, 'Note added to the grade.')
         log_activity(
             request,
             action='feedback.annotation_added',
             entity=grade,
-            description=f'Added annotation to grade for {grade.submission}',
+            description=f'Added a note to the grade for {grade.submission}',
             metadata={'course_id': grade.submission.assignment.course_id},
         )
     else:
-        messages.error(request, 'Could not add annotation. Check the form.')
+        messages.error(request, 'Could not add the note. Check the form.')
     return redirect('courses:submission_grade', pk=grade.submission_id)
 
 
@@ -1069,10 +1070,10 @@ def dashboard_submit(request, pk):
     assignment = get_object_or_404(Assignment.objects.select_related('course'), pk=pk)
     course = assignment.course
     if can_grade_course(request.user, course) or is_instructor(request.user):
-        messages.error(request, 'Instructors and TAs cannot submit assignments.')
+        messages.error(request, 'Teachers and TAs cannot submit assignments.')
         return redirect('dashboard')
     if not course.enrollments.filter(student=request.user).exists():
-        messages.error(request, 'Enroll in the course before submitting.')
+        messages.error(request, 'Join the course before submitting.')
         return redirect('courses:course_detail', pk=course.pk)
 
     form = SubmissionForm(request.POST, request.FILES, assignment=assignment)

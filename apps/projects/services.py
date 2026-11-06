@@ -348,7 +348,7 @@ def read_entry(archive_bytes, path):
         try:
             return archive.read(path)
         except KeyError:
-            raise ValidationError(f'File not found in snapshot: {path}')
+            raise ValidationError(f'File not found in the saved version: {path}')
 
 
 def read_archive_bytes(snapshot):
@@ -357,7 +357,7 @@ def read_archive_bytes(snapshot):
             return handle.read()
     except (OSError, ValueError) as exc:
         raise ValidationError(
-            f'The snapshot archive is unavailable: {exc.__class__.__name__}.'
+            f'The saved version archive is unavailable: {exc.__class__.__name__}.'
         )
 
 
@@ -534,11 +534,11 @@ def create_snapshot(
             project.assignment, files or [], paths, extra_exclusions
         )
     if not archive_bytes:
-        raise ValidationError('The snapshot archive is empty.')
+        raise ValidationError('The saved version archive is empty.')
 
     manifest, summary, issues = inspect_archive(archive_bytes)
     if not manifest:
-        raise ValidationError('The snapshot contains no files.')
+        raise ValidationError('The saved version contains no files.')
 
     version = (
         ProjectSnapshot.objects.filter(project=project).aggregate(
@@ -604,7 +604,7 @@ def create_submission_for_snapshot(snapshot, student, note=''):
         student=student,
         text_content=(
             note
-            or f'Project snapshot v{snapshot.version} '
+            or f'Project version v{snapshot.version} '
             f'({snapshot.file_count} files, {snapshot.total_bytes} bytes).'
         ),
     )
@@ -640,7 +640,7 @@ def save_web_submission_snapshot(submission, uploaded_file):
         notify_course_staff(
             submission.assignment,
             kind=Notification.KIND_INFO,
-            title=f'New project snapshot from {submission.student}',
+            title=f'New saved version from {submission.student}',
             body=f'{submission.assignment.title} · v{snapshot.version}',
             url=f'/projects/snapshots/{snapshot.pk}/',
             project=project,
@@ -748,7 +748,7 @@ def publish_rubric(rubric, user=None, notes=''):
         for criterion in rubric.criteria.all()
     ]
     if not criteria:
-        raise ValidationError('Add at least one criterion before publishing the rubric.')
+        raise ValidationError('Add at least one checklist item before saving the checklist.')
     latest = rubric.versions.aggregate(max_version=models_max('version'))['max_version'] or 0
     total = sum((Decimal(item['max_points']) for item in criteria), Decimal('0'))
     version = RubricVersion.objects.create(
@@ -775,7 +775,7 @@ def publish_rubric(rubric, user=None, notes=''):
 def apply_assessment(assessment, user):
     """Create/update an **unpublished** grade from a completed assessment."""
     if assessment.status != Assessment.STATUS_COMPLETED:
-        raise ValidationError('Only completed assessments can be applied.')
+        raise ValidationError('Only completed feedback can be used to create a grade.')
     snapshot = assessment.snapshot
     submission = snapshot.submission
     if submission is None:
@@ -829,7 +829,7 @@ def apply_assessment(assessment, user):
             if (grade.feedback or '').strip():
                 grade.feedback = (
                     grade.feedback.rstrip()
-                    + '\n\n--- Project assessment (reviewed by instructor) ---\n'
+                    + '\n\n--- Project feedback (reviewed by teacher) ---\n'
                     + feedback
                 )
             else:
@@ -857,7 +857,7 @@ def review_assessment(assessment, user, action, *, instructor_score=None,
     if action not in mapping:
         raise ValidationError('Unknown review action.')
     if assessment.status != Assessment.STATUS_COMPLETED:
-        raise ValidationError('Only completed assessments can be reviewed.')
+        raise ValidationError('Only completed feedback can be reviewed.')
 
     if instructor_score is not None:
         assessment.instructor_score = max(

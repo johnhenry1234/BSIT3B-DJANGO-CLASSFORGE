@@ -70,9 +70,9 @@ class PullRequestForm(forms.ModelForm):
 
 class AssessmentReviewForm(forms.Form):
     ACTION_CHOICES = [
-        ('approve', 'Approve the draft'),
-        ('override', 'Override with my scores'),
-        ('reject', 'Reject the draft'),
+        ('approve', 'Use the feedback as is'),
+        ('override', 'Use my scores'),
+        ('reject', 'Reject the feedback'),
     ]
     action = forms.ChoiceField(
         choices=ACTION_CHOICES,
@@ -84,7 +84,7 @@ class AssessmentReviewForm(forms.Form):
         max_digits=7,
         decimal_places=2,
         widget=forms.NumberInput(attrs={'class': 'form-control', 'step': '0.01'}),
-        help_text='Leave blank to use the approved draft total.',
+        help_text='Leave blank to use the approved suggested total.',
     )
     instructor_feedback = forms.CharField(
         required=False,
@@ -95,6 +95,6 @@ class AssessmentReviewForm(forms.Form):
 class CommentForm(forms.Form):
     body = forms.CharField(
         widget=forms.Textarea(
-            attrs={'class': 'form-control', 'rows': 3, 'placeholder': 'Add a review comment…'}
+            attrs={'class': 'form-control', 'rows': 3, 'placeholder': 'Add a comment…'}
         )
     )

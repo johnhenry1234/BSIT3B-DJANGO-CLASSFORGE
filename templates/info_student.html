@@ -6,7 +6,7 @@
       <div class="row align-items-center">
         <div class="col">
           <div class="page-pretitle">
-            <a href="{% url 'info:info_list' %}" class="text-muted">Students Info</a>
+            <a href="{% url 'info:info_list' %}" class="text-muted">Students</a>
           </div>
           <h2 class="page-title mb-0">
             {{ student.get_full_name|default:student.username }}
@@ -67,12 +67,12 @@
     <div class="col-lg-8">
       <div class="card">
         <div class="card-header">
-          <h3 class="card-title">Enrolled courses</h3>
+          <h3 class="card-title">Courses</h3>
         </div>
         <div class="table-responsive">
           <table class="table table-vcenter card-table">
             <thead>
-              <tr><th>Course</th><th>Name</th><th>Enrolled</th></tr>
+              <tr><th>Course</th><th>Name</th><th>Joined</th></tr>
             </thead>
             <tbody>
               {% for enrollment in enrollments %}
@@ -82,7 +82,7 @@
                 <td class="text-muted">{{ enrollment.enrolled_at|date:"M j, Y" }}</td>
               </tr>
               {% empty %}
-              <tr><td colspan="3" class="text-muted">No enrollments in your courses.</td></tr>
+              <tr><td colspan="3" class="text-muted">No courses joined yet.</td></tr>
               {% endfor %}
             </tbody>
           </table>
@@ -91,7 +91,7 @@
 
       <div class="card mt-3">
         <div class="card-header">
-          <h3 class="card-title">Submissions</h3>
+          <h3 class="card-title">Submitted work</h3>
         </div>
         <div class="table-responsive">
           <table class="table table-vcenter card-table">
@@ -109,9 +109,9 @@
                   {% if submission.grade_id %}
                     {{ submission.grade.score }} / {{ submission.assignment.max_score }}
                     {% if submission.grade.is_published %}
-                    <span class="badge bg-success-lt text-success">Published</span>
+                    <span class="badge bg-success-lt text-success">Shared</span>
                     {% else %}
-                    <span class="badge bg-warning-lt text-warning">Draft</span>
+                    <span class="badge bg-warning-lt text-warning">Not shared</span>
                     {% endif %}
                   {% else %}
                   <span class="text-muted">Not graded</span>
@@ -133,12 +133,12 @@
 
       <div class="card mt-3">
         <div class="card-header">
-          <h3 class="card-title">Project workspaces</h3>
+          <h3 class="card-title">Projects</h3>
         </div>
         <div class="table-responsive">
           <table class="table table-vcenter card-table">
             <thead>
-              <tr><th>Project</th><th>Course</th><th>Snapshots</th><th>Status</th><th></th></tr>
+              <tr><th>Project</th><th>Course</th><th>Saved versions</th><th>Status</th><th></th></tr>
             </thead>
             <tbody>
               {% for project in projects %}
@@ -160,7 +160,7 @@
                 </td>
               </tr>
               {% empty %}
-              <tr><td colspan="5" class="text-muted">No project workspaces in your courses.</td></tr>
+              <tr><td colspan="5" class="text-muted">No projects in your courses.</td></tr>
               {% endfor %}
             </tbody>
           </table>

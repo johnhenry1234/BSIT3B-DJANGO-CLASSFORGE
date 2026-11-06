@@ -75,7 +75,7 @@
             <span class="nav-link-icon d-md-none d-lg-inline-block">
               <i class="nav-icon fas fa-clipboard-check"></i>
             </span>
-            <span class="nav-link-title">Assessments</span>
+            <span class="nav-link-title">Feedback</span>
           </a>
         </li>
 
@@ -95,7 +95,7 @@
             <span class="nav-link-icon d-md-none d-lg-inline-block">
               <i class="nav-icon fas fa-check-double"></i>
             </span>
-            <span class="nav-link-title">Grading Queue</span>
+            <span class="nav-link-title">Students to grade</span>
           </a>
         </li>
         {% endif %}
@@ -106,7 +106,7 @@
             <span class="nav-link-icon d-md-none d-lg-inline-block">
               <i class="nav-icon fas fa-clipboard-list"></i>
             </span>
-            <span class="nav-link-title">Audit Trail</span>
+            <span class="nav-link-title">Activity history</span>
           </a>
         </li>
         {% endif %}
@@ -117,7 +117,7 @@
             <span class="nav-link-icon d-md-none d-lg-inline-block">
               <i class="nav-icon fas fa-graduation-cap"></i>
             </span>
-            <span class="nav-link-title">My Grades</span>
+            <span class="nav-link-title">My grades</span>
           </a>
         </li>
         <li class="nav-item">
@@ -133,7 +133,7 @@
             <span class="nav-link-icon d-md-none d-lg-inline-block">
               <i class="nav-icon fas fa-id-badge"></i>
             </span>
-            <span class="nav-link-title">My Portfolio</span>
+            <span class="nav-link-title">My portfolio</span>
           </a>
         </li>
         {% endif %}
@@ -144,20 +144,12 @@
             <span class="nav-link-icon d-md-none d-lg-inline-block">
               <i class="nav-icon fas fa-address-card"></i>
             </span>
-            <span class="nav-link-title">Students Info</span>
+            <span class="nav-link-title">Student info</span>
           </a>
         </li>
         {% endif %}
 
         {% if user.is_authenticated %}
-        <li class="nav-item">
-          <a class="nav-link {% if request.resolver_match.url_name == 'token_manage' %}active{% endif %}" href="{% url 'projects:token_manage' %}">
-            <span class="nav-link-icon d-md-none d-lg-inline-block">
-              <i class="nav-icon fas fa-key"></i>
-            </span>
-            <span class="nav-link-title">API Tokens</span>
-          </a>
-        </li>
         <li class="nav-item d-lg-none">
           <a class="nav-link" href="{% url 'logout' %}">
             <span class="nav-link-icon d-md-none d-lg-inline-block">
@@ -175,7 +167,7 @@
               <span class="min-w-0 flex-grow-1">
                 <span class="dh-user-name">{{ user.username }}</span>
                 <span class="dh-user-role">
-                  {% if user.is_superuser %}Administrator{% elif user.is_staff %}Instructor{% elif user.is_authenticated %}Student{% endif %}
+                  {% if user.is_superuser %}Administrator{% elif user.is_staff %}Teacher{% elif user.is_authenticated %}Student{% endif %}
                 </span>
               </span>
             </a>

@@ -7,7 +7,6 @@ app_name = 'projects'
 urlpatterns = [
     path('', views.project_list, name='project_list'),
     path('notifications/', views.notification_list, name='notification_list'),
-    path('tokens/', views.token_manage, name='token_manage'),
     path('assessments/', views.assessment_queue, name='assessment_queue'),
     path('assessments/<int:pk>/review/', views.assessment_review, name='assessment_review'),
     path('assessments/<int:pk>/retry/', views.assessment_retry, name='assessment_retry'),

@@ -22,7 +22,7 @@
             </a>
             {% if role == 'instructor' or user.is_staff or user.is_superuser %}
             <a href="{% url 'courses:grading_queue' %}" class="btn btn-outline-primary">
-              <i class="fas fa-check-double me-2"></i> Grading Queue
+              <i class="fas fa-check-double me-2"></i> Students to grade
             </a>
             {% endif %}
           </div>
@@ -44,7 +44,7 @@
       <div class="card"><div class="card-body"><div class="subheader">Submissions</div><div class="h1 mb-0">{{ stats.submissions }}</div></div></div>
     </div>
     <div class="col-sm-6 col-lg-3">
-      <div class="card"><div class="card-body"><div class="subheader">Pending Grading</div><div class="h1 mb-0">{{ stats.pending_grades }}</div></div></div>
+      <div class="card"><div class="card-body"><div class="subheader">Waiting to grade</div><div class="h1 mb-0">{{ stats.pending_grades }}</div></div></div>
     </div>
   </div>
   {% elif role == 'instructor' %}
@@ -56,18 +56,18 @@
       <div class="card"><div class="card-body"><div class="subheader">Assignments</div><div class="h1 mb-0">{{ stats.assignments }}</div></div></div>
     </div>
     <div class="col-sm-6 col-lg-3">
-      <div class="card"><div class="card-body"><div class="subheader">Enrolled Students</div><div class="h1 mb-0">{{ stats.students }}</div></div></div>
+      <div class="card"><div class="card-body"><div class="subheader">Students</div><div class="h1 mb-0">{{ stats.students }}</div></div></div>
     </div>
     <div class="col-sm-6 col-lg-3">
-      <div class="card"><div class="card-body"><div class="subheader">Pending Grading</div><div class="h1 mb-0">{{ stats.pending_grades }}</div></div></div>
+      <div class="card"><div class="card-body"><div class="subheader">Waiting to grade</div><div class="h1 mb-0">{{ stats.pending_grades }}</div></div></div>
     </div>
   </div>
   <div class="row row-cards mt-1">
     <div class="col-sm-6 col-lg-3">
-      <div class="card"><div class="card-body"><div class="subheader">Submission Rate</div><div class="h1 mb-0">{{ stats.submission_rate }}%</div></div></div>
+      <div class="card"><div class="card-body"><div class="subheader">Submission rate</div><div class="h1 mb-0">{{ stats.submission_rate }}%</div></div></div>
     </div>
     <div class="col-sm-6 col-lg-3">
-      <div class="card"><div class="card-body"><div class="subheader">Ungraded</div><div class="h1 mb-0">{{ stats.ungraded_count }}</div></div></div>
+      <div class="card"><div class="card-body"><div class="subheader">Not graded</div><div class="h1 mb-0">{{ stats.ungraded_count }}</div></div></div>
     </div>
     <div class="col-sm-6 col-lg-3">
       <div class="card"><div class="card-body"><div class="subheader">Upcoming Deadlines</div><div class="h1 mb-0">{{ stats.upcoming_deadlines }}</div></div></div>
@@ -77,7 +77,7 @@
         <div>
           <div class="subheader">Quick Actions</div>
           <div class="mt-2">
-            <a href="{% url 'courses:course_list' %}" class="btn btn-sm btn-primary">Manage Courses</a>
+            <a href="{% url 'courses:course_list' %}" class="btn btn-sm btn-primary">Manage courses</a>
           </div>
         </div>
         <i class="fas fa-bolt text-primary"></i>
@@ -88,9 +88,9 @@
     <div class="col-lg-6">
       <div class="card">
         <div class="card-header">
-          <h3 class="card-title">Recent Student Submissions</h3>
+          <h3 class="card-title">Recent student work</h3>
           <div class="card-actions">
-            <a href="{% url 'courses:grading_queue' %}" class="btn btn-sm btn-primary">Grade All</a>
+            <a href="{% url 'courses:grading_queue' %}" class="btn btn-sm btn-primary">Start grading</a>
           </div>
         </div>
         <div class="list-group list-group-flush list-group-hoverable">
@@ -143,27 +143,27 @@
   {% else %}
   {% if unseen_count %}
   <div class="alert alert-info d-flex align-items-center justify-content-between" role="alert">
-    <div><i class="fas fa-bell me-2"></i>You have <strong>{{ unseen_count }}</strong> new post(s) from your instructor(s).</div>
+    <div><i class="fas fa-bell me-2"></i>You have <strong>{{ unseen_count }}</strong> new update(s) from your teacher(s).</div>
     <span class="badge bg-blue-lt">New</span>
   </div>
   {% endif %}
   <div class="row row-cards">
     <div class="col-sm-6 col-lg-3">
-      <div class="card"><div class="card-body"><div class="subheader">Enrolled Courses</div><div class="h1 mb-0">{{ stats.courses }}</div></div></div>
+      <div class="card"><div class="card-body"><div class="subheader">My courses</div><div class="h1 mb-0">{{ stats.courses }}</div></div></div>
     </div>
     <div class="col-sm-6 col-lg-3">
-      <div class="card"><div class="card-body"><div class="subheader">Pending Submissions</div><div class="h1 mb-0">{{ stats.pending_submissions }}</div></div></div>
+      <div class="card"><div class="card-body"><div class="subheader">Not submitted yet</div><div class="h1 mb-0">{{ stats.pending_submissions }}</div></div></div>
     </div>
     <div class="col-sm-6 col-lg-3">
-      <div class="card"><div class="card-body"><div class="subheader">My Submissions</div><div class="h1 mb-0">{{ stats.submissions }}</div></div></div>
+      <div class="card"><div class="card-body"><div class="subheader">My submitted work</div><div class="h1 mb-0">{{ stats.submissions }}</div></div></div>
     </div>
     <div class="col-sm-6 col-lg-3">
-      <div class="card"><div class="card-body"><div class="subheader">Published Grades</div><div class="h1 mb-0">{{ stats.published_grades }}</div></div></div>
+      <div class="card"><div class="card-body"><div class="subheader">Shared grades</div><div class="h1 mb-0">{{ stats.published_grades }}</div></div></div>
     </div>
   </div>
   <div class="card mt-3">
     <div class="card-header">
-      <h3 class="card-title">Activities & Projects from Instructors</h3>
+      <h3 class="card-title">Work from your teachers</h3>
       <div class="card-actions">
         <span class="text-secondary">Newest first</span>
       </div>
@@ -192,9 +192,9 @@
             {% if post.status == 'Not submitted' %}
             <button class="btn btn-sm btn-primary" data-bs-toggle="modal" data-bs-target="#submitModal-{{ post.assignment.id }}">Submit</button>
             {% elif post.status == 'Submitted' %}
-            <button class="btn btn-sm btn-outline-primary" data-bs-toggle="modal" data-bs-target="#submitModal-{{ post.assignment.id }}">Re-submit</button>
+            <button class="btn btn-sm btn-outline-primary" data-bs-toggle="modal" data-bs-target="#submitModal-{{ post.assignment.id }}">Submit again</button>
             {% else %}
-            <a href="{% url 'courses:my_grades' %}" class="btn btn-sm btn-ghost-primary">View Grade</a>
+            <a href="{% url 'courses:my_grades' %}" class="btn btn-sm btn-ghost-primary">View grade</a>
             {% endif %}
           </div>
         </div>
@@ -217,7 +217,7 @@
             <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
           </div>
           <div class="modal-body">
-            <p class="text-secondary">Course: {{ post.course.code }} · Instructor: {{ post.instructor.username }}</p>
+            <p class="text-secondary">Course: {{ post.course.code }} · Teacher: {{ post.instructor.username }}</p>
             {% if post.assignment.due_date %}<p class="text-secondary">Due: {{ post.assignment.due_date|date:"M j, Y g:i A" }}</p>{% endif %}
             <div class="mb-2">
               <label class="form-label">File attachment (zip/pdf)</label>
@@ -231,7 +231,7 @@
           </div>
           <div class="modal-footer">
             <button type="button" class="btn btn-link" data-bs-dismiss="modal">Cancel</button>
-            <button type="submit" class="btn btn-primary">Submit Work</button>
+            <button type="submit" class="btn btn-primary">Submit work</button>
           </div>
         </form>
       </div>
@@ -241,8 +241,8 @@
   {% endfor %}
 
   <div class="mt-3">
-    <a href="{% url 'courses:my_grades' %}" class="btn btn-outline-primary"><i class="fas fa-graduation-cap me-2"></i>View My Grades</a>
-    <a href="{% url 'courses:student_history' %}" class="btn btn-outline-secondary"><i class="fas fa-history me-2"></i>My History</a>
+    <a href="{% url 'courses:my_grades' %}" class="btn btn-outline-primary"><i class="fas fa-graduation-cap me-2"></i>View my grades</a>
+    <a href="{% url 'courses:student_history' %}" class="btn btn-outline-secondary"><i class="fas fa-history me-2"></i>My history</a>
   </div>
   {% endif %}
 

@@ -1,7 +1,7 @@
 {
   "name": "classforge-vscode",
   "displayName": "ClassForge",
-  "description": "Submit ClassForge projects, inspect assessment feedback and create revision branches without leaving VS Code.",
+  "description": "Upload ClassForge projects, view feedback and start requested changes without leaving VS Code.",
   "version": "0.1.0",
   "publisher": "classforge",
   "license": "MIT",
@@ -40,27 +40,27 @@
       },
       {
         "command": "classforge.previewSubmission",
-        "title": "ClassForge: Preview Submission Manifest"
+        "title": "ClassForge: Preview Files to Upload"
       },
       {
         "command": "classforge.submitProject",
-        "title": "ClassForge: Submit Project Snapshot"
+        "title": "ClassForge: Upload Project Files"
       },
       {
         "command": "classforge.checkStatus",
-        "title": "ClassForge: Check Assessment Status"
+        "title": "ClassForge: Check Feedback"
       },
       {
         "command": "classforge.showFeedback",
-        "title": "ClassForge: Show Feedback"
+        "title": "ClassForge: View Feedback"
       },
       {
         "command": "classforge.createRevisionBranch",
-        "title": "ClassForge: Create Revision Branch"
+        "title": "ClassForge: Start Requested Changes"
       },
       {
         "command": "classforge.openDashboard",
-        "title": "ClassForge: Open Web Dashboard"
+        "title": "ClassForge: Open ClassForge Website"
       }
     ],
     "configuration": {
@@ -75,13 +75,13 @@
           "type": "number",
           "default": 500,
           "minimum": 1,
-          "description": "Maximum number of files allowed in one snapshot."
+          "description": "Maximum number of files allowed in one upload."
         },
         "classforge.maxBytes": {
           "type": "number",
           "default": 52428800,
           "minimum": 1024,
-          "description": "Maximum total size of a snapshot in bytes."
+          "description": "Maximum total size of an upload in bytes."
         },
         "classforge.requestTimeoutMs": {
           "type": "number",
