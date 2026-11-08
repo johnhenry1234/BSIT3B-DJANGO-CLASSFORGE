@@ -18,8 +18,8 @@
         </div>
         <div class="col-auto ms-auto">
           <div class="btn-list">
-            <a href="{% url 'projects:assessment_queue' %}" class="btn btn-ghost-secondary">Submissions to review</a>
-            <a href="{% url 'projects:snapshot_detail' assessment.snapshot.id %}" class="btn btn-outline-secondary">Saved version</a>
+            <a href="{% url 'projects:assessment_queue' %}" class="btn btn-ghost-secondary">Back</a>
+            <a href="{% url 'projects:snapshot_detail' assessment.snapshot.id %}" class="btn btn-outline-secondary">Version</a>
           </div>
         </div>
       </div>
@@ -51,7 +51,7 @@
     <div class="col-lg-7">
       <div class="card">
         <div class="card-header d-flex align-items-center">
-          <div class="card-title">Feedback</div>
+          <div class="card-title">Draft feedback</div>
           <div class="ms-auto d-flex gap-2">
             {% if assessment.status == 'completed' %}<span class="badge bg-success-lt text-success">Completed</span>
             {% elif assessment.status == 'failed' %}<span class="badge bg-danger-lt text-danger">Failed</span>
@@ -91,13 +91,13 @@
           <form method="POST" action="{% url 'projects:assessment_retry' assessment.id %}" class="mb-3">
             {% csrf_token %}
             <button class="btn btn-outline-danger" {% if assessment.status == 'queued' %}disabled{% endif %}>
-              <i class="fas fa-rotate-right me-2"></i> Check again
+              <i class="fas fa-rotate-right me-2"></i> Retry
             </button>
           </form>
           {% endif %}
 
           {% if assessment.criteria.exists %}
-          <h3>Grading checklist</h3>
+          <h3>How the draft score was estimated</h3>
           <div class="table-responsive">
             <table class="table table-vcenter card-table">
               <thead><tr><th>Checklist item</th><th class="text-end">AI / automatic</th><th class="text-end">Points</th><th class="text-end">Teacher</th></tr></thead>
@@ -126,8 +126,44 @@
           </div>
           {% endif %}
 
-          <h3 class="mt-4">Feedback</h3>
-          <div class="text-muted" style="white-space: pre-wrap;">{{ assessment.feedback|linebreaksbr }}</div>
+          <div class="d-flex align-items-center justify-content-between mt-4 mb-2">
+            <h3 class="mb-0">Student-facing feedback</h3>
+            <span class="badge bg-azure-lt text-azure">Draft</span>
+          </div>
+          {% with sections=assessment.validation.feedback_sections %}
+          {% if sections %}
+          <div class="dh-feedback">
+            {% if sections.overview %}<p class="dh-feedback__overview">{{ sections.overview }}</p>{% endif %}
+            {% if sections.strengths %}
+            <div class="dh-feedback__section">
+              <h4 class="dh-feedback__heading">What you did well</h4>
+              <ul>
+                {% for item in sections.strengths %}<li>{{ item }}</li>{% endfor %}
+              </ul>
+            </div>
+            {% endif %}
+            {% if sections.improvements %}
+            <div class="dh-feedback__section">
+              <h4 class="dh-feedback__heading">What to improve</h4>
+              <ul>
+                {% for item in sections.improvements %}<li>{{ item }}</li>{% endfor %}
+              </ul>
+            </div>
+            {% endif %}
+            {% if sections.next_steps %}
+            <div class="dh-feedback__section">
+              <h4 class="dh-feedback__heading">Next steps</h4>
+              <ol>
+                {% for item in sections.next_steps %}<li>{{ item }}</li>{% endfor %}
+              </ol>
+            </div>
+            {% endif %}
+            {% if sections.note %}<p class="dh-feedback__note">{{ sections.note }}</p>{% endif %}
+          </div>
+          {% else %}
+          <div class="dh-feedback"><div class="dh-feedback__raw">{{ assessment.feedback }}</div></div>
+          {% endif %}
+          {% endwith %}
         </div>
       </div>
 
@@ -179,7 +215,7 @@
             </div>
           </div>
           <div class="card-footer d-flex gap-2">
-            <button type="submit" class="btn btn-primary">Save review</button>
+            <button type="submit" class="btn btn-primary">Save</button>
             <small class="text-muted ms-auto align-self-center">Choose “Reject the draft” above to reject.</small>
           </div>
         </form>
@@ -196,15 +232,15 @@
             {% csrf_token %}
             <input type="hidden" name="action" value="apply">
             <button class="btn btn-success w-100">
-              <i class="fas fa-file-circle-check me-2"></i> Use this as the grade
+              <i class="fas fa-file-circle-check me-2"></i> Use grade
             </button>
           </form>
           {% else %}
-          <button class="btn btn-secondary w-100" disabled>Feedback is not ready yet</button>
+          <button class="btn btn-secondary w-100" disabled>Not ready</button>
           {% endif %}
           {% if can_publish_grade and assessment.snapshot.submission_id %}
           <a href="{% url 'courses:submission_grade' assessment.snapshot.submission_id %}" class="btn btn-outline-primary w-100 mt-2">
-            Open grade
+            Open
           </a>
           {% endif %}
         </div>

@@ -5,22 +5,19 @@
     <div class="container-xl">
       <div class="row align-items-center">
         <div class="col">
-          <div class="page-pretitle">ClassForge</div>
-          <div class="d-flex align-items-center gap-3 flex-wrap d-none d-md-flex">
-            <h2 class="page-title mb-0">Courses</h2>
-          </div>
-          <h2 class="page-title mb-0 d-md-none">Courses</h2>
+          <div class="page-pretitle">Catalog</div>
+          <h2 class="page-title mb-0">Courses</h2>
+          <div class="text-muted mt-1">Browse your classes, or find a course by name or code.</div>
         </div>
       </div>
     </div>
   </div>
-  <br>
 
-  <div class="d-flex flex-column flex-md-row align-items-start align-items-md-center justify-content-between gap-2 mb-1">
-    <form method="GET" class="w-100" style="max-width: 420px;">
+  <div class="dh-toolbar d-print-none">
+    <form method="GET" role="search">
       <div class="input-group">
-        <span class="input-group-text"><i class="ti ti-search"></i></span>
-        <input type="text" name="q" value="{{ query }}" class="form-control" placeholder="Search by name, code, or description...">
+        <span class="input-group-text"><i class="fas fa-search" aria-hidden="true"></i></span>
+        <input type="text" name="q" value="{{ query }}" class="form-control" placeholder="Search by name, code, or description..." aria-label="Search courses">
         {% if query %}
         <a href="{% url 'courses:course_list' %}" class="btn btn-outline-secondary">Clear</a>
         {% endif %}
@@ -28,8 +25,8 @@
       </div>
     </form>
     {% if user.is_staff or user.is_superuser %}
-    <a href="{% url 'courses:course_create' %}" class="btn btn-primary mt-n4">
-      <i class="fas fa-plus-circle me-2"></i> Add Course
+    <a href="{% url 'courses:course_create' %}" class="btn btn-primary ms-md-auto">
+      <i class="fas fa-plus me-2" aria-hidden="true"></i> Create
     </a>
     {% endif %}
   </div>
@@ -83,15 +80,16 @@
             {% endif %}
           </td>
           <td>
-            <a href="{% url 'courses:course_detail' course.id %}" class="btn btn-ghost-secondary btn-icon btn-sm" title="View">
-              <i class="fas fa-eye text-primary"></i>
-            </a>
+            <a href="{% url 'courses:course_detail' course.id %}" class="btn btn-sm btn-outline-primary">View</a>
           </td>
         </tr>
         {% empty %}
         <tr>
           <td colspan="7">
             <div class="empty py-5">
+              <div class="empty-icon">
+                <i class="fas fa-book-open fa-2x" aria-hidden="true"></i>
+              </div>
               <p class="empty-title">No courses found</p>
               <p class="empty-subtitle">Try adjusting your search or add a new course.</p>
             </div>
@@ -111,7 +109,7 @@
       <ul class="pagination m-0 ms-auto">
         {% if courses.has_previous %}
         <li class="page-item">
-          <a class="page-link" href="?page={{ courses.previous_page_number }}{% if query %}&q={{ query }}{% endif %}">prev</a>
+          <a class="page-link" href="?page={{ courses.previous_page_number }}{% if query %}&q={{ query }}{% endif %}"><i class="fas fa-chevron-left me-1" aria-hidden="true"></i>prev</a>
         </li>
         {% endif %}
         {% for num in courses.paginator.page_range %}
@@ -121,7 +119,7 @@
         {% endfor %}
         {% if courses.has_next %}
         <li class="page-item">
-          <a class="page-link" href="?page={{ courses.next_page_number }}{% if query %}&q={{ query }}{% endif %}">next</a>
+          <a class="page-link" href="?page={{ courses.next_page_number }}{% if query %}&q={{ query }}{% endif %}">next<i class="fas fa-chevron-right ms-1" aria-hidden="true"></i></a>
         </li>
         {% endif %}
       </ul>

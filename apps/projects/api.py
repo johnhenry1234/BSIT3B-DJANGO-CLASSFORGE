@@ -282,6 +282,11 @@ def _assessment_payload(assessment, include_details=False):
         'instructor_score': _decimal(assessment.instructor_score),
         'summary': assessment.summary,
         'feedback': assessment.feedback,
+        'feedback_sections': (
+            (assessment.validation or {}).get('feedback_sections', {})
+            if isinstance(assessment.validation, dict)
+            else {}
+        ),
         'requires_review': assessment.requires_review,
         'review_status': assessment.review_status,
         'applied_at': _iso(assessment.applied_at),

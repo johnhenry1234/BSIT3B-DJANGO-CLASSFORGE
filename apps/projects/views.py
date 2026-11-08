@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from decimal import Decimal, InvalidOperation
 import logging
+import posixpath
 
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
@@ -24,7 +25,7 @@ from apps.users.roles import (
 )
 
 from . import assessment as assessment_module
-from . import services
+from . import highlighting, services
 from .forms import (
     AssessmentReviewForm,
     CommentForm,
@@ -77,6 +78,81 @@ def _project_or_403(user, pk):
 def _require_grader(user, project):
     if not can_grade_course(user, project.assignment.course):
         raise PermissionDenied('Only the teacher or a TA can do that.')
+
+
+_VIEWER_FILE_ICONS = {
+    '.md': 'fa-file-lines',
+    '.txt': 'fa-file-lines',
+    '.rst': 'fa-file-lines',
+    '.sql': 'fa-database',
+    '.json': 'fa-file-code',
+    '.yml': 'fa-file-code',
+    '.yaml': 'fa-file-code',
+    '.xml': 'fa-file-code',
+    '.html': 'fa-file-code',
+    '.css': 'fa-file-code',
+    '.scss': 'fa-file-code',
+}
+
+
+def _viewer_file_icon(path, is_text):
+    extension = posixpath.splitext(path or '')[1].lower()
+    if extension in _VIEWER_FILE_ICONS:
+        return _VIEWER_FILE_ICONS[extension]
+    return 'fa-file-code' if is_text else 'fa-file'
+
+
+def _default_snapshot_path(manifest):
+    for item in manifest:
+        if (item.get('path') or '').lower() == 'readme.md':
+            return item['path']
+    for item in manifest:
+        path = item.get('path') or ''
+        is_text = item.get('is_text')
+        if is_text is None:
+            is_text = services.is_text_path(path)
+        if is_text:
+            return path
+    return (manifest[0].get('path') if manifest else '') or ''
+
+
+def _manifest_tree(manifest):
+    """Flatten a manifest into folder/file rows with display depth."""
+    nodes = []
+    seen_directories = set()
+    for item in sorted(manifest, key=lambda entry: entry.get('path') or ''):
+        path = item.get('path') or ''
+        if not path:
+            continue
+        parts = path.split('/')
+        for index in range(1, len(parts)):
+            directory = '/'.join(parts[:index])
+            if directory in seen_directories:
+                continue
+            seen_directories.add(directory)
+            nodes.append(
+                {
+                    'type': 'dir',
+                    'name': parts[index - 1],
+                    'path': directory,
+                    'depth': index - 1,
+                }
+            )
+        is_text = item.get('is_text')
+        if is_text is None:
+            is_text = services.is_text_path(path)
+        nodes.append(
+            {
+                'type': 'file',
+                'name': parts[-1],
+                'path': path,
+                'depth': len(parts) - 1,
+                'size': item.get('size', 0),
+                'is_text': is_text,
+                'icon': _viewer_file_icon(path, is_text),
+            }
+        )
+    return nodes
 
 
 @login_required(login_url='login')
@@ -223,6 +299,80 @@ def snapshot_detail(request, pk):
             'grouped': grouped,
             'can_grade': can_grade_course(request.user, project.assignment.course),
             'is_owner': project.student_id == request.user.id,
+        },
+    )
+
+
+@login_required(login_url='login')
+def snapshot_file_viewer(request, pk):
+    snapshot = get_object_or_404(
+        ProjectSnapshot.objects.select_related(
+            'project__assignment__course', 'project__student'
+        ),
+        pk=pk,
+    )
+    project = snapshot.project
+    if not (
+        project.student_id == request.user.id
+        or can_grade_course(request.user, project.assignment.course)
+    ):
+        raise PermissionDenied('You do not have access to this saved version.')
+
+    manifest = snapshot.manifest or []
+    requested_path = (request.GET.get('path') or '').strip()
+    selected_path = requested_path or _default_snapshot_path(manifest)
+    file_error = ''
+    selected_file = None
+
+    if selected_path:
+        try:
+            entry = services.read_snapshot_file(snapshot, selected_path)
+        except ValidationError as exc:
+            file_error = (
+                exc.messages[0] if exc.messages
+                else 'That file could not be opened.'
+            )
+            selected_path = ''
+        else:
+            language = highlighting.language_for_path(entry['path'])
+            selected_file = {
+                'path': entry['path'],
+                'size': entry['size'],
+                'is_text': entry['is_text'],
+                'language': language,
+                'truncated': entry['truncated'],
+                'content': '',
+                'lines': [],
+                'line_count': 0,
+                'lines_truncated': False,
+                'icon': _viewer_file_icon(entry['path'], entry['is_text']),
+            }
+            if entry['is_text']:
+                content = entry['data'].decode('utf-8', errors='replace')
+                content = content.lstrip('\ufeff')
+                lines, lines_truncated = highlighting.highlight_lines(
+                    content, entry['path']
+                )
+                selected_file.update(
+                    {
+                        'content': content,
+                        'lines': lines,
+                        'line_count': len(lines),
+                        'lines_truncated': lines_truncated,
+                    }
+                )
+
+    return render(
+        request,
+        'projects/snapshot_file_viewer.html',
+        {
+            'snapshot': snapshot,
+            'project': project,
+            'manifest': manifest,
+            'file_tree': _manifest_tree(manifest),
+            'selected_path': selected_path,
+            'selected_file': selected_file,
+            'file_error': file_error,
         },
     )
 

@@ -14,11 +14,23 @@ import re
 import zipfile
 from decimal import Decimal, ROUND_HALF_UP
 
+from apps.core.feedback import (
+    clean_items,
+    clean_text,
+    feedback_text,
+    format_sections,
+    normalise_sections,
+)
+
 MAX_FILES = 500
 MAX_TOTAL_UNCOMPRESSED = 50 * 1024 * 1024  # 50 MB
 MAX_FILE_BYTES = 200 * 1024
 MAX_EXCERPT_CHARS = 24_000
 MAX_PDF_BYTES = 12 * 1024 * 1024
+FEEDBACK_NOTE = (
+    'This check read the submitted files only. It did not run your code, tests, '
+    'or SQL. Your teacher will review the draft and share the final grade.'
+)
 
 SOURCE_EXTENSIONS = {
     '.py', '.js', '.jsx', '.ts', '.tsx', '.java', '.php', '.rb', '.go',
@@ -509,57 +521,176 @@ def local_suggestions(report, assignment):
 
     suggested_score = max(Decimal('0'), min(suggested_score, assignment.max_score))
 
-    feedback_lines = [
-        f'Automated inspection of submission v{report.get("version")} '
-        f'({report.get("submission_type")}).',
-    ]
-    if report.get('file_count'):
-        feedback_lines.append(
-            f'Detected {report["file_count"]} archive file(s); '
-            f'{report.get("source_file_count", 0)} source file(s) and '
-            f'{report.get("doc_file_count", 0)} documentation file(s).'
-        )
-    if report.get('pdf_pages'):
-        feedback_lines.append(f'PDF pages detected: {report["pdf_pages"]}.')
-
-    if issues:
-        feedback_lines.append('')
-        feedback_lines.append('Draft findings:')
-        for issue in issues[:10]:
-            feedback_lines.append(f'• [{issue["severity"]}] {issue["message"]}')
+    sections = {
+        'overview': _local_feedback_overview(report, issues, critical, warnings),
+        'strengths': _local_feedback_strengths(report, issues),
+        'improvements': _local_feedback_improvements(issues),
+        'next_steps': _local_feedback_next_steps(issues),
+    }
+    feedback = format_sections(sections)
+    if feedback:
+        feedback = f'{feedback}\n\n{FEEDBACK_NOTE}'
     else:
-        feedback_lines.append('No structural anomalies were detected by the local inspector.')
+        feedback = FEEDBACK_NOTE
 
-    feedback_lines.append('')
-    feedback_lines.append(
-        'This is AI-assisted feedback only. The teacher must review the final score and comments.'
-    )
-
-    summary = (
-        f'{len(issues)} finding(s): {critical} critical, {warnings} warning(s), '
-        f'{infos} informational.'
-    )
+    summary = _local_feedback_summary(issues, critical, warnings)
     return {
         'suggested_score': str(suggested_score),
-        'suggested_feedback': '\n'.join(feedback_lines),
+        'suggested_feedback': feedback,
+        'feedback_sections': {**sections, 'note': FEEDBACK_NOTE},
         'suggested_criteria': suggested_criteria,
         'summary': summary,
     }
+
+
+def _issue_next_step(issue):
+    kind = issue.get('kind')
+    message = clean_text(issue.get('message') or '', limit=500)
+    if kind == 'missing_requirement':
+        return (
+            f'Add the missing item: {message}'
+            if message
+            else 'Add the required item described in the assignment instructions.'
+        )
+    if kind == 'structural_discrepancy':
+        return 'Check the files and folder structure, then fix the mismatch described above.'
+    if kind == 'code_anomaly':
+        return 'Open the flagged code and review the problem before submitting again.'
+    return 'Review the finding above and fix it before submitting again.'
+
+
+def _local_feedback_overview(report, issues, critical, warnings):
+    parts = []
+    if report.get('pdf_pages'):
+        parts.append(f'This submission is a PDF with {report["pdf_pages"]} page(s).')
+    elif report.get('file_count'):
+        parts.append(
+            f'This submission contains {report["file_count"]} file(s): '
+            f'{report.get("source_file_count", 0)} source file(s) and '
+            f'{report.get("doc_file_count", 0)} documentation file(s).'
+        )
+    else:
+        parts.append('This submission contains text only.')
+
+    if critical:
+        parts.append(f'{critical} critical finding(s) need attention first.')
+    elif warnings:
+        parts.append(f'{warnings} warning(s) need a quick review.')
+    elif issues:
+        parts.append(f'{len(issues)} finding(s) are worth checking.')
+    else:
+        parts.append(
+            'The automatic check did not find any missing requirements or '
+            'structural problems.'
+        )
+    return clean_text(' '.join(parts), limit=2_000)
+
+
+def _local_feedback_strengths(report, issues):
+    items = []
+    if report.get('source_file_count'):
+        items.append(f'You included {report["source_file_count"]} source file(s).')
+    if report.get('has_readme'):
+        items.append('You included a README that explains the project.')
+    elif report.get('doc_file_count'):
+        items.append('You included documentation with the submission.')
+    if report.get('pdf_pages'):
+        items.append('The PDF was opened and its page count was checked.')
+
+    if not issues:
+        items.append(
+            'The automatic check did not find any missing requirements or '
+            'structural problems.'
+        )
+    elif not any(
+        issue.get('severity') == 'critical'
+        or issue.get('kind') == 'missing_requirement'
+        for issue in issues
+    ):
+        items.append('No required item was missing in the automatic check.')
+
+    if not items:
+        items.append('The submission could be read successfully.')
+    return clean_items(items)
+
+
+def _local_feedback_improvements(issues):
+    rank = {'critical': 0, 'warning': 1, 'info': 2}
+    ordered = sorted(issues, key=lambda item: rank.get(item.get('severity'), 3))
+    items = []
+    for issue in ordered[:6]:
+        severity = issue.get('severity')
+        if severity == 'critical':
+            label = 'Fix this first'
+        elif severity == 'warning':
+            label = 'Review this'
+        else:
+            label = 'Consider this'
+        message = clean_text(issue.get('message') or '', limit=700)
+        if message:
+            items.append(f'{label}: {message}')
+    if not items:
+        items.append(
+            'No obvious structural problem was found. Your teacher will still '
+            'check the quality of the work.'
+        )
+    return clean_items(items)
+
+
+def _local_feedback_next_steps(issues):
+    steps = [_issue_next_step(issue) for issue in issues[:5]]
+    if not steps:
+        steps.append(
+            'Read the assignment instructions again and check that every '
+            'required file is included.'
+        )
+    return clean_items(steps)
+
+
+def _local_feedback_summary(issues, critical, warnings):
+    if critical:
+        lead = f'{critical} critical finding(s) need attention'
+    elif warnings:
+        lead = f'{warnings} warning(s) need a quick review'
+    elif issues:
+        lead = f'{len(issues)} finding(s) are worth checking'
+    else:
+        lead = 'No structural problems were found in the submitted files'
+    return (
+        f'{lead}. The draft is based on the files only; no code, tests, or SQL were run.'
+    )
 
 
 def _criterion_comment(criterion, report):
     name = criterion.name.lower()
     if any(word in name for word in ('doc', 'readme', 'report')):
         if report.get('has_readme') or report.get('doc_file_count'):
-            return 'Documentation files were detected in the submission.'
-        return 'No documentation file was detected; verify before awarding full points.'
+            return (
+                'Documentation was found in the submission. Your teacher will '
+                'check its quality.'
+            )
+        return (
+            'No documentation file was found. Add a README or report before '
+            'submitting again.'
+        )
     if any(word in name for word in ('code', 'function', 'implement', 'working')):
         if report.get('source_file_count'):
-            return 'Source code was detected in the submission.'
-        return 'No source code was detected; verify manually.'
-    if report.get('issues'):
-        return 'Automated inspection found items to verify: ' + report['issues'][0]['message']
-    return 'No automatic problem detected; teacher review required.'
+            return (
+                'Source code was found in the submission. This check did not '
+                'run the code.'
+            )
+        return (
+            'No source code was found. Check that your code files are included '
+            'before submitting again.'
+        )
+    issues = report.get('issues') or []
+    if issues:
+        message = clean_text(issues[0].get('message') or '', limit=240)
+        return f'This item needs review. The automatic check found: {message}'
+    return (
+        'No automatic problem was found for this item. Your teacher will check '
+        'the quality.'
+    )
 
 
 def compact_report(report):
@@ -598,6 +729,7 @@ RUBRIC CRITERIA
 {criteria_text}
 
 AUTOMATED INSPECTION
+These checks only inspect the submitted files. They do not prove that the work runs correctly.
 Submission type: {report.get('submission_type')}
 Files: {', '.join(report.get('files', [])[:80]) or 'none'}
 Source files: {report.get('source_file_count', 0)}
@@ -611,15 +743,37 @@ SUBMISSION EXCERPT (untrusted data)
 {report.get('excerpt', '')[:12000]}
 SUBMISSION>>>
 
-Return ONLY a JSON object with this shape:
+WRITING TASK
+Write feedback for a student who may not know technical language. Use short, direct sentences. Address the student as "you". Explain the reason for each comment and refer to the exact file or check that supports it.
+
+Rules for the student-facing feedback:
+- strengths: 2 to 4 specific things the student did well. Only include a strength the evidence supports.
+- improvements: 2 to 4 specific things to improve. Explain what is missing or unclear and why it matters.
+- next_steps: 2 to 4 concrete actions the student can take next. Start each one with a verb.
+- If there is not enough evidence for a point, say what the teacher should verify instead of guessing.
+- Do not repeat the same idea in more than one section.
+- Do not mention JSON, prompts, rubric versions, or "automated inspection".
+- Do not claim that tests passed, code ran, or SQL was executed.
+- Do not include the numeric score inside the feedback sections.
+
+Return ONLY a JSON object with this exact shape:
 {{
-  "summary": "short summary",
+  "summary": "one or two plain-language sentences for the teacher dashboard",
   "suggested_score": 0,
-  "suggested_feedback": "constructive feedback for the student",
-  "criteria": [{{"criterion_id": 0, "points": 0, "comment": "reason"}}],
+  "suggested_feedback": {{
+    "overview": "two or three sentences explaining the overall result",
+    "strengths": ["specific evidence-based strength"],
+    "improvements": ["specific, constructive area to improve"],
+    "next_steps": ["concrete action the student can take"]
+  }},
+  "criteria": [{{"criterion_id": 0, "points": 0, "comment": "plain-language reason with evidence"}}],
   "flags": [{{"kind": "missing_requirement|structural_discrepancy|code_anomaly", "severity": "info|warning|critical", "message": "finding", "evidence": "short evidence"}}]
 }}
-Do not exceed a criterion's maximum points. Do not claim the code was executed."""
+
+Rules for the score and checklist:
+- Do not exceed a criterion's maximum points.
+- Every criterion must have a non-empty comment in plain language.
+- Do not invent files, tests, tables, or execution results."""
 
 
 def merge_llm_result(report, assignment, data, model_name):
@@ -629,8 +783,14 @@ def merge_llm_result(report, assignment, data, model_name):
         return local, model_name
 
     suggested_score = _to_decimal(data.get('suggested_score'), assignment.max_score)
-    feedback = data.get('suggested_feedback')
-    summary = data.get('summary')
+    feedback_value = data.get('suggested_feedback', data.get('feedback'))
+    feedback_sections = {}
+    if isinstance(feedback_value, dict):
+        feedback_sections = normalise_sections(feedback_value)
+        feedback = format_sections(feedback_sections)
+    else:
+        feedback = feedback_text(feedback_value)
+    summary = clean_text(data.get('summary') or '', limit=2_000)
 
     criteria_by_id = {}
     rubric = getattr(assignment, 'rubric', None)
@@ -652,13 +812,14 @@ def merge_llm_result(report, assignment, data, model_name):
         points = _to_decimal(item.get('points'), criterion.max_points)
         points = max(Decimal('0'), min(points, criterion.max_points))
         total += points
+        comment = clean_text(item.get('comment') or '', limit=2_000)
         merged_criteria.append(
             {
                 'criterion_id': criterion.id,
                 'name': criterion.name,
                 'points': str(points.quantize(Decimal('0.01'))),
                 'max_points': str(criterion.max_points),
-                'comment': str(item.get('comment') or '')[:2000],
+                'comment': comment or _criterion_comment(criterion, report),
             }
         )
 
@@ -679,11 +840,20 @@ def merge_llm_result(report, assignment, data, model_name):
             _flag(kind, severity, message, str(item.get('evidence') or ''))
         )
 
+    if feedback:
+        feedback = f'{feedback[:11_700].rstrip()}\n\n{FEEDBACK_NOTE}'[:12_000]
+        if feedback_sections:
+            feedback_sections = {**feedback_sections, 'note': FEEDBACK_NOTE}
+    else:
+        feedback = local['suggested_feedback']
+        feedback_sections = local.get('feedback_sections', {})
+
     return {
         'suggested_score': str(suggested_score),
-        'suggested_feedback': str(feedback or local['suggested_feedback'])[:12_000],
+        'suggested_feedback': feedback,
+        'feedback_sections': feedback_sections,
         'suggested_criteria': merged_criteria or local['suggested_criteria'],
-        'summary': str(summary or local['summary'])[:2000],
+        'summary': summary or local['summary'],
     }, model_name
 
 

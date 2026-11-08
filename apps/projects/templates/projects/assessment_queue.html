@@ -17,8 +17,8 @@
         </div>
         <div class="col-auto ms-auto">
           <div class="btn-list">
-            <a href="{% url 'projects:project_list' %}" class="btn btn-ghost-secondary">Projects</a>
-            {% if is_grader %}<a href="{% url 'courses:grading_queue' %}" class="btn btn-outline-secondary">Students to grade</a>{% endif %}
+            <a href="{% url 'projects:project_list' %}" class="btn btn-ghost-secondary">Back</a>
+            {% if is_grader %}<a href="{% url 'courses:grading_queue' %}" class="btn btn-outline-secondary">Grading</a>{% endif %}
           </div>
         </div>
       </div>

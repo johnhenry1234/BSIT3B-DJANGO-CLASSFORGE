@@ -11,6 +11,7 @@ urlpatterns = [
     path('assessments/<int:pk>/review/', views.assessment_review, name='assessment_review'),
     path('assessments/<int:pk>/retry/', views.assessment_retry, name='assessment_retry'),
     path('snapshots/<int:pk>/', views.snapshot_detail, name='snapshot_detail'),
+    path('snapshots/<int:pk>/files/', views.snapshot_file_viewer, name='snapshot_file_viewer'),
     path('snapshots/<int:pk>/assess/', views.snapshot_assess, name='snapshot_assess'),
     path('snapshots/<int:pk>/compare/', views.snapshot_compare, name='snapshot_compare'),
     path('pull-requests/<int:pk>/', views.pull_request_detail, name='pull_request_detail'),

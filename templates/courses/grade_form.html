@@ -17,7 +17,7 @@
         <div class="col-auto ms-auto">
           <form method="POST" action="{% url 'ai:run_evaluation' submission.id %}">
             {% csrf_token %}
-            <button class="btn btn-outline-info">Generate AI feedback</button>
+            <button class="btn btn-outline-info">Check work</button>
           </form>
         </div>
       </div>
@@ -36,7 +36,7 @@
     <div class="card-header"><div class="card-title">Submitted work v{{ submission.version }}</div></div>
     <div class="card-body">
       {% if submission.file_attachment %}
-      <p><a href="{{ submission.file_attachment.url }}" class="btn btn-sm btn-outline-primary"><i class="fas fa-download me-2"></i>Download file</a></p>
+      <p><a href="{{ submission.file_attachment.url }}" class="btn btn-sm btn-outline-primary"><i class="fas fa-download me-2"></i>Download</a></p>
       {% endif %}
       {% if submission.text_content %}
       <div class="text-muted" style="white-space: pre-wrap;">{{ submission.text_content }}</div>
@@ -49,7 +49,7 @@
 
   {% if ai_evaluations %}
   <div class="card mb-3">
-    <div class="card-header"><div class="card-title">AI feedback</div></div>
+    <div class="card-header"><div class="card-title">Draft feedback</div></div>
     <div class="card-body p-0">
       <div class="table-responsive">
         <table class="table table-vcenter card-table mb-0">
@@ -64,9 +64,9 @@
             <td>{{ ai.flags.count }}</td>
             <td class="text-end">
               <details class="mb-0">
-                <summary class="btn btn-sm btn-outline-secondary">View feedback</summary>
+                <summary class="btn btn-sm btn-outline-secondary">View</summary>
                 <div class="text-start mt-2 p-2">
-                  <div class="text-muted" style="white-space:pre-wrap;">{{ ai.suggested_feedback }}</div>
+                  <div class="dh-feedback"><div class="dh-feedback__raw">{{ ai.suggested_feedback }}</div></div>
                   {% if ai.flags.all %}
                   <div class="mt-2">
                     <strong>Warnings</strong>
@@ -90,7 +90,7 @@
                   {% if not ai.applied_at %}
                   <form method="POST" action="{% url 'ai:apply_evaluation' ai.id %}" class="mt-2">
                     {% csrf_token %}
-                    <button class="btn btn-sm btn-primary">Use this as the grade (not shared)</button>
+                    <button class="btn btn-sm btn-primary">Use grade</button>
                   </form>
                   {% endif %}
                 </div>
@@ -178,7 +178,7 @@
       </div>
       <div class="card-footer d-flex gap-2 align-items-center">
         <a href="{% url 'courses:assignment_detail' submission.assignment_id %}" class="btn btn-ghost-secondary">Cancel</a>
-        <button type="submit" class="btn btn-primary ms-auto">Save grade</button>
+        <button type="submit" class="btn btn-primary ms-auto">Save</button>
       </div>
     </form>
   </div>
@@ -195,7 +195,7 @@
       {% else %}
       <form method="POST" action="{% url 'courses:grade_publish' existing.id %}" class="d-inline ms-auto">
         {% csrf_token %}
-        <button type="submit" class="btn btn-outline-success">Share with student</button>
+        <button type="submit" class="btn btn-outline-success">Share</button>
       </form>
       {% endif %}
     </div>
@@ -226,7 +226,7 @@
         <div class="col-md-3"><label class="form-label">Applies to</label>{{ annotation_form.anchor }}</div>
         <div class="col-md-5"><label class="form-label">Note</label>{{ annotation_form.body }}</div>
         <div class="col-md-3"><label class="form-label">File</label>{{ annotation_form.file_attachment }}</div>
-        <div class="col-md-1"><button class="btn btn-primary">Add note</button></div>
+        <div class="col-md-1"><button class="btn btn-primary">Add</button></div>
       </form>
     </div>
   </div>

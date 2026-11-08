@@ -37,7 +37,7 @@ from apps.courses.models import (
     Submission,
 )
 from apps.projects import assessment as assessment_module
-from apps.projects import parsers, services
+from apps.projects import highlighting, parsers, services
 from apps.projects.models import (
     ApiToken,
     Assessment,
@@ -275,6 +275,16 @@ class PathSafetyTests(SimpleTestCase):
         with self.assertRaises(ValidationError):
             services.inspect_archive(b'not a zip file')
 
+    def test_highlighting_escapes_source_markup(self):
+        lines, truncated = highlighting.highlight_lines(
+            '<script>alert(1)</script>', 'src/app.py'
+        )
+        rendered = '\n'.join(lines)
+        self.assertFalse(truncated)
+        self.assertNotIn('<script>', rendered)
+        self.assertIn('&lt;', rendered)
+        self.assertIn('&gt;', rendered)
+
 
 # ---------------------------------------------------------------------------
 # Snapshots, submissions, diffs and rubric publication
@@ -338,6 +348,32 @@ class SnapshotTests(WorkspaceTestCase):
         self.assertEqual([item['path'] for item in diff['modified']], ['README.md'])
         self.assertTrue(diff['text_diffs'])
         self.assertIn('Capstone changed', diff['text_diffs'][0]['diff'])
+
+    def test_read_snapshot_file_returns_text_and_rejects_unsafe_paths(self):
+        snapshot = self.make_snapshot()
+        entry = services.read_snapshot_file(snapshot, 'src/app.py')
+        self.assertTrue(entry['is_text'])
+        self.assertIn(b'def main', entry['data'])
+        self.assertFalse(entry['truncated'])
+
+        for path in ('../secrets.txt', 'src/../../secrets.txt', 'missing.py'):
+            with self.subTest(path=path), self.assertRaises(ValidationError):
+                services.read_snapshot_file(snapshot, path)
+
+    def test_read_snapshot_file_truncates_large_files(self):
+        snapshot = self.make_snapshot({'README.md': 'x' * 200})
+        entry = services.read_snapshot_file(snapshot, 'README.md', max_bytes=20)
+        self.assertTrue(entry['truncated'])
+        self.assertTrue(entry['is_text'])
+        self.assertEqual(entry['size'], 200)
+        self.assertEqual(len(entry['data']), 20)
+
+    def test_read_snapshot_file_detects_binary_content(self):
+        snapshot = self.make_snapshot(
+            {'src/app.py': 'print(1)', 'assets/data.bin': b'\x00\x01\x02\x03'}
+        )
+        entry = services.read_snapshot_file(snapshot, 'assets/data.bin')
+        self.assertFalse(entry['is_text'])
 
     def test_publish_rubric_creates_immutable_versions(self):
         version = services.publish_rubric(self.rubric, self.instructor, notes='v1')
@@ -447,6 +483,16 @@ class AssessmentPipelineTests(WorkspaceTestCase):
         self.assertEqual(checks['require_foreign_keys']['status'], 'pass')
         self.assertEqual(checks['require_tests']['status'], 'pass')
         self.assertEqual(checks['required_tests']['status'], 'skipped')
+
+        sections = assessment.validation['feedback_sections']
+        self.assertTrue(sections['overview'])
+        self.assertTrue(sections['strengths'])
+        self.assertTrue(sections['next_steps'])
+        self.assertEqual(sections['note'], assessment_module.FEEDBACK_NOTE)
+        self.assertIn('What you did well', assessment.feedback)
+        self.assertIn('Next steps', assessment.feedback)
+        self.assertIn('did not run your code, tests, or SQL', assessment.feedback)
+        self.assertNotIn('Deterministic draft scored', assessment.feedback)
 
         self.assertTrue(
             Notification.objects.filter(
@@ -663,6 +709,61 @@ class AiValidationTests(SimpleTestCase):
         self.assertEqual(payload['criteria'][1]['confidence'], Decimal('1'))
         self.assertEqual(payload['score'], Decimal('10.00'))
         self.assertEqual(len(payload['evidence']), 1)
+        self.assertEqual(payload['feedback_sections'], {})
+        self.assertIn('Feedback', payload['feedback'])
+
+    def test_accepts_structured_feedback_object(self):
+        payload = assessment_module.validate_ai_payload(
+            {
+                'summary': 'Good draft.',
+                'feedback': {
+                    'overview': 'You included the main files.',
+                    'strengths': ['The README explains the project.'],
+                    'improvements': ['Add tests for the main features.'],
+                    'next_steps': ['Add a test file and run it locally.'],
+                },
+                'score': 12,
+                'criteria': [
+                    {'criterion_id': 1, 'points': 8, 'comment': 'Code is present.'},
+                    {'criterion_id': 2, 'points': 4, 'comment': 'Docs are present.'},
+                ],
+            },
+            self.criteria,
+            Decimal('15'),
+        )
+        self.assertIsNotNone(payload)
+        sections = payload['feedback_sections']
+        self.assertEqual(
+            sections['strengths'], ['The README explains the project.']
+        )
+        self.assertEqual(
+            sections['next_steps'], ['Add a test file and run it locally.']
+        )
+        self.assertEqual(sections['note'], assessment_module.FEEDBACK_NOTE)
+        self.assertIn('What you did well', payload['feedback'])
+        self.assertIn('What to improve', payload['feedback'])
+        self.assertIn('Next steps', payload['feedback'])
+
+    def test_rejects_empty_structured_feedback(self):
+        payload = assessment_module.validate_ai_payload(
+            {
+                'summary': 'Summary',
+                'feedback': {
+                    'overview': ' ',
+                    'strengths': [],
+                    'improvements': [],
+                    'next_steps': [],
+                },
+                'score': 1,
+                'criteria': [
+                    {'criterion_id': 1, 'points': 1, 'comment': 'ok'},
+                    {'criterion_id': 2, 'points': 1, 'comment': 'ok'},
+                ],
+            },
+            self.criteria,
+            Decimal('15'),
+        )
+        self.assertIsNone(payload)
 
     def test_rejects_incomplete_or_unknown_criteria(self):
         base = {
@@ -1155,6 +1256,90 @@ class ProjectWebTests(WorkspaceTestCase):
             reverse('projects:snapshot_compare', args=[self.snapshot.pk])
         )
         self.assertEqual(compare.status_code, 403)
+
+    def test_snapshot_detail_links_to_file_viewer(self):
+        self.client.force_login(self.student)
+        response = self.client.get(
+            reverse('projects:snapshot_detail', args=[self.snapshot.pk])
+        )
+        self.assertContains(
+            response,
+            reverse('projects:snapshot_file_viewer', args=[self.snapshot.pk]),
+        )
+        self.assertContains(response, 'View files')
+
+    def test_file_viewer_opens_default_file_for_owner(self):
+        self.client.force_login(self.student)
+        response = self.client.get(
+            reverse('projects:snapshot_file_viewer', args=[self.snapshot.pk])
+        )
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, 'README.md')
+        self.assertContains(response, 'Capstone')
+        self.assertContains(response, 'Read only')
+
+    def test_file_viewer_opens_selected_file_for_teacher(self):
+        self.client.force_login(self.instructor)
+        response = self.client.get(
+            reverse('projects:snapshot_file_viewer', args=[self.snapshot.pk]),
+            {'path': 'src/app.py'},
+        )
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, 'src/app.py')
+        self.assertContains(response, 'def')
+        self.assertContains(response, 'main')
+
+    def test_file_viewer_blocks_other_students(self):
+        self.client.force_login(self.other_student)
+        response = self.client.get(
+            reverse('projects:snapshot_file_viewer', args=[self.snapshot.pk])
+        )
+        self.assertEqual(response.status_code, 403)
+
+    def test_file_viewer_reports_missing_files(self):
+        self.client.force_login(self.student)
+        response = self.client.get(
+            reverse('projects:snapshot_file_viewer', args=[self.snapshot.pk]),
+            {'path': 'not-there.py'},
+        )
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, 'That file is not in this saved version.')
+        self.assertContains(response, 'README.md')
+
+    def test_file_viewer_rejects_traversal_paths(self):
+        self.client.force_login(self.student)
+        response = self.client.get(
+            reverse('projects:snapshot_file_viewer', args=[self.snapshot.pk]),
+            {'path': '../secrets.txt'},
+        )
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, 'Path traversal is not allowed')
+
+    def test_file_viewer_shows_binary_notice(self):
+        snapshot = self.make_snapshot(
+            {'src/app.py': 'print(1)', 'assets/data.bin': b'\x00\x01\x02\x03'}
+        )
+        self.client.force_login(self.student)
+        response = self.client.get(
+            reverse('projects:snapshot_file_viewer', args=[snapshot.pk]),
+            {'path': 'assets/data.bin'},
+        )
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, 'This file is not plain text')
+        self.assertNotContains(response, '<span class="cf-code__line">')
+
+    def test_file_viewer_escapes_html_in_source(self):
+        snapshot = self.make_snapshot(
+            {'src/app.py': '<script>alert(1)</script>'}
+        )
+        self.client.force_login(self.student)
+        response = self.client.get(
+            reverse('projects:snapshot_file_viewer', args=[snapshot.pk]),
+            {'path': 'src/app.py'},
+        )
+        self.assertEqual(response.status_code, 200)
+        self.assertNotContains(response, '<script>alert(1)</script>')
+        self.assertContains(response, '&lt;script&gt;')
 
     def test_assessment_review_is_restricted_to_graders(self):
         services.publish_rubric(self.rubric, self.instructor)

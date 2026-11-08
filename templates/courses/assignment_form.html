@@ -125,7 +125,7 @@
       </div>
       <div class="card-footer d-flex gap-2">
         <a href="{% if mode == 'create' %}{% url 'courses:course_detail' course.id %}{% else %}{% url 'courses:assignment_detail' assignment.id %}{% endif %}" class="btn btn-ghost-secondary">Cancel</a>
-        <button type="submit" class="btn btn-primary ms-auto">{% if mode == 'create' %}Create Assignment{% else %}Save Changes{% endif %}</button>
+        <button type="submit" class="btn btn-primary ms-auto">{% if mode == 'create' %}Create{% else %}Save{% endif %}</button>
       </div>
     </form>
   </div>

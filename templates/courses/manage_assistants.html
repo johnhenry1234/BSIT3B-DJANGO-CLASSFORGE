@@ -8,7 +8,7 @@
         <h2 class="page-title mb-0">Manage Teaching Assistants</h2>
       </div>
       <div class="col-auto ms-auto">
-        <a href="{% url 'courses:course_detail' course.id %}" class="btn btn-ghost-secondary">Back to Course</a>
+        <a href="{% url 'courses:course_detail' course.id %}" class="btn btn-ghost-secondary">Back</a>
       </div>
     </div>
   </div>
@@ -29,7 +29,7 @@
             {% csrf_token %}
             <label class="form-label">Username</label>
             <input type="text" name="username" class="form-control" placeholder="Enter TA username" required>
-            <button class="btn btn-primary mt-3">Assign</button>
+            <button class="btn btn-primary mt-3">Add</button>
           </form>
         </div>
       </div>

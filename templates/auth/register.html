@@ -3,304 +3,290 @@
 <html lang="en">
 <head>
   <meta charset="utf-8" />
-  <meta
-  name="viewport"
-  content="width=device-width, initial-scale=1, viewport-fit=cover"
-  />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
   <meta http-equiv="X-UA-Compatible" content="ie=edge" />
-  <title>
-    Sign in - Tabler
-</title>
-<link rel="icon" href="./favicon-dev.ico" type="image/x-icon" />
-<link rel="shortcut icon" href="./favicon-dev.ico" type="image/x-icon" />
-<link
-href="{% static 'libs/jsvectormap/dist/jsvectormap.css' %}"
-rel="stylesheet"
-/>
-<link href="{% static 'css/tabler.css' %}" rel="stylesheet" />
-<link href="{% static 'css/tabler-flags.css' %}" rel="stylesheet" />
-<link href="{% static 'css/tabler-socials.css' %}" rel="stylesheet" />
-<link href="{% static 'css/tabler-payments.css' %}" rel="stylesheet" />
-<link href="{% static 'css/tabler-vendors.css' %}" rel="stylesheet" />
-<link href="{% static 'css/tabler-marketing.css' %}" rel="stylesheet" />
-<link href="{% static 'css/tabler-themes.css' %}" rel="stylesheet" />
-<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
-<style>
-    @import url("https://rsms.me/inter/inter.css");
-</style>
+  <title>Create account - ClassForge</title>
+  <link href="{% static 'css/tabler.css' %}" rel="stylesheet" />
+  <link href="{% static 'css/tabler-themes.css' %}" rel="stylesheet" />
+  <link href="https://rsms.me/inter/inter.css" rel="stylesheet" />
+  <link href="{% static 'css/app-theme.css' %}" rel="stylesheet" />
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css" />
 </head>
-<body class="antialiased">
-    <script src="{% static 'js/tabler-theme.js' %}"></script>
-    <div class="page page-center">
-        <div class="container container-tight py-4">
 
-            <!-- Logo / Brand -->
-            <center class="mb-2">
-                <span class="fw-bold fs-1 text-body">
-                  Class<span class="text-primary">Forge</span>
-              </span>
-          </center>
+<body class="dh-auth-body">
+  <script src="{% static 'js/tabler-theme.js' %}"></script>
 
-          <div class="card card-md">
-            <div class="card-body">
+  <div class="page page-center dh-auth-page">
+    <div class="container py-5">
+      <div class="dh-auth-shell dh-auth-shell--wide mx-auto">
+        <div class="text-center mb-4">
+          <a href="{% url 'login' %}" class="dh-auth-brand" aria-label="ClassForge home">
+            <span class="dh-auth-brand-mark">
+              <i class="fas fa-shield-halved" aria-hidden="true"></i>
+            </span>
+            <span class="dh-auth-brand-name">Class<span>Forge</span></span>
+          </a>
+          <div class="dh-auth-footer small mt-2">Code Management System</div>
+        </div>
 
-                <h2 class="h2 text-center mb-4">Create your account</h2>
-
-                {% if errors %}
-                <div class="alert alert-danger alert-dismissible fade show" role="alert">
-                    <i class="fas fa-exclamation-circle me-2"></i>
-                    Please fix the errors below.
-                    <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
-                </div>
-                {% endif %}
-
-                <form method="POST" action="{% url 'register' %}">
-                    {% csrf_token %}
-
-                    <!-- First Name & Last Name -->
-                    <div class="row g-3 mb-3">
-                        <div class="col-6">
-                            <label class="form-label required">First Name</label>
-                            <input
-                            type="text"
-                            name="first_name"
-                            class="form-control {% if errors.first_name %}is-invalid{% endif %}"
-                            placeholder=""
-                            value="{{ form_data.first_name|default:'' }}">
-                            {% if errors.first_name %}
-                            <div class="invalid-feedback">{{ errors.first_name }}</div>
-                            {% endif %}
-                        </div>
-                        <div class="col-6">
-                            <label class="form-label required">Last Name</label>
-                            <input
-                            type="text"
-                            name="last_name"
-                            class="form-control {% if errors.last_name %}is-invalid{% endif %}"
-                            placeholder=""
-                            value="{{ form_data.last_name|default:'' }}">
-                            {% if errors.last_name %}
-                            <div class="invalid-feedback">{{ errors.last_name }}</div>
-                            {% endif %}
-                        </div>
-                    </div>
-
-                    <!-- Username -->
-                    <div class="mb-3">
-                        <label class="form-label required">Username</label>
-                        <div class="input-group">
-                            <span class="input-group-text">
-                                <i class="fas fa-user text-secondary"></i>
-                            </span>
-                            <input
-                            type="text"
-                            name="username"
-                            class="form-control {% if errors.username %}is-invalid{% endif %}"
-                            placeholder=""
-                            value="{{ form_data.username|default:'' }}">
-                            {% if errors.username %}
-                            <div class="invalid-feedback">{{ errors.username }}</div>
-                            {% endif %}
-                        </div>
-                    </div>
-
-                    <!-- Email -->
-                    <div class="mb-3">
-                        <label class="form-label required">Email</label>
-                        <div class="input-group">
-                            <span class="input-group-text">
-                                <i class="fas fa-envelope text-secondary"></i>
-                            </span>
-                            <input
-                            type="email"
-                            name="email"
-                            class="form-control {% if errors.email %}is-invalid{% endif %}"
-                            placeholder=""
-                            value="{{ form_data.email|default:'' }}">
-                            {% if errors.email %}
-                            <div class="invalid-feedback">{{ errors.email }}</div>
-                            {% endif %}
-                        </div>
-                    </div>
-
-                    <!-- ID Number -->
-                    <div class="mb-3">
-                        <label class="form-label required">ID Number</label>
-                        <div class="input-group">
-                            <span class="input-group-text">
-                                <i class="fas fa-id-card text-secondary"></i>
-                            </span>
-                            <input
-                            type="text"
-                            name="id_number"
-                            class="form-control {% if errors.id_number %}is-invalid{% endif %}"
-                            placeholder="e.g. 2024-00001"
-                            value="{{ form_data.id_number|default:'' }}">
-                            {% if errors.id_number %}
-                            <div class="invalid-feedback">{{ errors.id_number }}</div>
-                            {% endif %}
-                        </div>
-                    </div>
-
-                    <!-- Age & Address -->
-                    <div class="row g-3 mb-3">
-                        <div class="col-4">
-                            <label class="form-label required">Age</label>
-                            <input
-                            type="number"
-                            name="age"
-                            min="1"
-                            max="150"
-                            class="form-control {% if errors.age %}is-invalid{% endif %}"
-                            placeholder=""
-                            value="{{ form_data.age|default:'' }}">
-                            {% if errors.age %}
-                            <div class="invalid-feedback">{{ errors.age }}</div>
-                            {% endif %}
-                        </div>
-                        <div class="col-8">
-                            <label class="form-label required">Address</label>
-                            <input
-                            type="text"
-                            name="address"
-                            class="form-control {% if errors.address %}is-invalid{% endif %}"
-                            placeholder=""
-                            value="{{ form_data.address|default:'' }}">
-                            {% if errors.address %}
-                            <div class="invalid-feedback">{{ errors.address }}</div>
-                            {% endif %}
-                        </div>
-                    </div>
-
-                    <!-- Password -->
-                    <div class="mb-3">
-                        <label class="form-label required">Password</label>
-                        <div class="input-group">
-                            <span class="input-group-text">
-                                <i class="fas fa-lock text-secondary"></i>
-                            </span>
-                            <input
-                            type="password"
-                            name="password"
-                            id="password"
-                            class="form-control {% if errors.password %}is-invalid{% endif %}"
-                            placeholder="Min. 8 characters">
-                            <button class="btn btn-outline-secondary" type="button" id="togglePassword">
-                                <i class="fas fa-eye" id="eyeIcon"></i>
-                            </button>
-                            {% if errors.password %}
-                            <div class="invalid-feedback">{{ errors.password }}</div>
-                            {% endif %}
-                        </div>
-                    </div>
-
-                    <!-- Confirm Password -->
-                    <div class="mb-3">
-                        <label class="form-label required">Confirm Password</label>
-                        <div class="input-group">
-                            <span class="input-group-text">
-                                <i class="fas fa-lock text-secondary"></i>
-                            </span>
-                            <input
-                            type="password"
-                            name="confirm_password"
-                            id="confirm_password"
-                            class="form-control {% if errors.confirm_password %}is-invalid{% endif %}"
-                            placeholder="Repeat your password">
-                            <button class="btn btn-outline-secondary" type="button" id="toggleConfirm">
-                                <i class="fas fa-eye" id="eyeIconConfirm"></i>
-                            </button>
-                            {% if errors.confirm_password %}
-                            <div class="invalid-feedback">{{ errors.confirm_password }}</div>
-                            {% endif %}
-                        </div>
-                    </div>
-
-                    <!-- Role -->
-                    <div class="mb-3">
-                        <label class="form-label required">Sign up as</label>
-                        <div class="row g-2">
-                            <div class="col-6">
-                                <label class="form-selectgroup-item">
-                                    <input type="radio" name="role" value="student" class="form-selectgroup-input" {% if form_data.role|default:'student' == 'student' %}checked{% endif %}>
-                                    <span class="form-selectgroup-label d-flex align-items-center p-3">
-                                        <span class="me-3">
-                                            <i class="fas fa-graduation-cap text-primary"></i>
-                                        </span>
-                                        <span>
-                                            <span class="form-selectgroup-title">Student</span>
-                                            <span class="d-block text-secondary small">Join courses, submit work & view grades</span>
-                                        </span>
-                                    </span>
-                                </label>
-                            </div>
-                            <div class="col-6">
-                                <label class="form-selectgroup-item">
-                                    <input type="radio" name="role" value="instructor" class="form-selectgroup-input" {% if form_data.role == 'instructor' %}checked{% endif %}>
-                                    <span class="form-selectgroup-label d-flex align-items-center p-3">
-                                        <span class="me-3">
-                                            <i class="fas fa-chalkboard-teacher text-warning"></i>
-                                        </span>
-                                        <span>
-                                            <span class="form-selectgroup-title">Teacher</span>
-                                            <span class="d-block text-secondary small">Teach courses & review work</span>
-                                        </span>
-                                    </span>
-                                </label>
-                            </div>
-                        </div>
-                        {% if errors.role %}
-                        <div class="text-danger small mt-1">{{ errors.role }}</div>
-                        {% endif %}
-                    </div>
-
-                    <!-- Submit -->
-                    <div class="form-footer">
-                        <button type="submit" class="btn btn-primary w-100">
-                            <i class="fas fa-user-plus me-2"></i>Create Account
-                        </button>
-                    </div>
-
-                </form>
-
+        <div class="card dh-auth-card">
+          <div class="card-body">
+            <div class="dh-auth-icon">
+              <i class="fas fa-user-plus" aria-hidden="true"></i>
             </div>
+            <h1 class="dh-auth-title text-center mb-1">Create your account</h1>
+            <p class="dh-auth-subtitle text-center mb-4">Join as a student or teacher and get started.</p>
+
+            {% if errors %}
+            <div class="alert alert-danger alert-dismissible fade show" role="alert">
+              <i class="fas fa-exclamation-circle me-2" aria-hidden="true"></i>
+              Please fix the errors below.
+              <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+            </div>
+            {% endif %}
+
+            <form method="POST" action="{% url 'register' %}">
+              {% csrf_token %}
+
+              <div class="row g-3 mb-3">
+                <div class="col-sm-6">
+                  <label class="form-label required" for="id_first_name">First name</label>
+                  <input
+                    type="text"
+                    name="first_name"
+                    id="id_first_name"
+                    class="form-control {% if errors.first_name %}is-invalid{% endif %}"
+                    value="{{ form_data.first_name|default:'' }}">
+                  {% if errors.first_name %}
+                  <div class="invalid-feedback">{{ errors.first_name }}</div>
+                  {% endif %}
+                </div>
+                <div class="col-sm-6">
+                  <label class="form-label required" for="id_last_name">Last name</label>
+                  <input
+                    type="text"
+                    name="last_name"
+                    id="id_last_name"
+                    class="form-control {% if errors.last_name %}is-invalid{% endif %}"
+                    value="{{ form_data.last_name|default:'' }}">
+                  {% if errors.last_name %}
+                  <div class="invalid-feedback">{{ errors.last_name }}</div>
+                  {% endif %}
+                </div>
+              </div>
+
+              <div class="mb-3">
+                <label class="form-label required" for="id_username">Username</label>
+                <div class="input-group">
+                  <span class="input-group-text">
+                    <i class="fas fa-user" aria-hidden="true"></i>
+                  </span>
+                  <input
+                    type="text"
+                    name="username"
+                    id="id_username"
+                    class="form-control {% if errors.username %}is-invalid{% endif %}"
+                    autocomplete="username"
+                    value="{{ form_data.username|default:'' }}">
+                  {% if errors.username %}
+                  <div class="invalid-feedback">{{ errors.username }}</div>
+                  {% endif %}
+                </div>
+              </div>
+
+              <div class="mb-3">
+                <label class="form-label required" for="id_email">Email</label>
+                <div class="input-group">
+                  <span class="input-group-text">
+                    <i class="fas fa-envelope" aria-hidden="true"></i>
+                  </span>
+                  <input
+                    type="email"
+                    name="email"
+                    id="id_email"
+                    class="form-control {% if errors.email %}is-invalid{% endif %}"
+                    autocomplete="email"
+                    value="{{ form_data.email|default:'' }}">
+                  {% if errors.email %}
+                  <div class="invalid-feedback">{{ errors.email }}</div>
+                  {% endif %}
+                </div>
+              </div>
+
+              <div class="mb-3">
+                <label class="form-label required" for="id_id_number">ID number</label>
+                <div class="input-group">
+                  <span class="input-group-text">
+                    <i class="fas fa-id-card" aria-hidden="true"></i>
+                  </span>
+                  <input
+                    type="text"
+                    name="id_number"
+                    id="id_id_number"
+                    class="form-control {% if errors.id_number %}is-invalid{% endif %}"
+                    placeholder="e.g. 2024-00001"
+                    value="{{ form_data.id_number|default:'' }}">
+                  {% if errors.id_number %}
+                  <div class="invalid-feedback">{{ errors.id_number }}</div>
+                  {% endif %}
+                </div>
+              </div>
+
+              <div class="row g-3 mb-3">
+                <div class="col-4">
+                  <label class="form-label required" for="id_age">Age</label>
+                  <input
+                    type="number"
+                    name="age"
+                    id="id_age"
+                    min="1"
+                    max="150"
+                    class="form-control {% if errors.age %}is-invalid{% endif %}"
+                    value="{{ form_data.age|default:'' }}">
+                  {% if errors.age %}
+                  <div class="invalid-feedback">{{ errors.age }}</div>
+                  {% endif %}
+                </div>
+                <div class="col-8">
+                  <label class="form-label required" for="id_address">Address</label>
+                  <input
+                    type="text"
+                    name="address"
+                    id="id_address"
+                    class="form-control {% if errors.address %}is-invalid{% endif %}"
+                    value="{{ form_data.address|default:'' }}">
+                  {% if errors.address %}
+                  <div class="invalid-feedback">{{ errors.address }}</div>
+                  {% endif %}
+                </div>
+              </div>
+
+              <div class="mb-3">
+                <label class="form-label required" for="password">Password</label>
+                <div class="input-group">
+                  <span class="input-group-text">
+                    <i class="fas fa-lock" aria-hidden="true"></i>
+                  </span>
+                  <input
+                    type="password"
+                    name="password"
+                    id="password"
+                    class="form-control {% if errors.password %}is-invalid{% endif %}"
+                    placeholder="At least 8 characters"
+                    autocomplete="new-password">
+                  <button class="btn btn-outline-secondary" type="button" id="togglePassword" aria-label="Show password">
+                    <i class="fas fa-eye" id="eyeIcon" aria-hidden="true"></i>
+                  </button>
+                  {% if errors.password %}
+                  <div class="invalid-feedback">{{ errors.password }}</div>
+                  {% endif %}
+                </div>
+              </div>
+
+              <div class="mb-3">
+                <label class="form-label required" for="confirm_password">Confirm password</label>
+                <div class="input-group">
+                  <span class="input-group-text">
+                    <i class="fas fa-lock" aria-hidden="true"></i>
+                  </span>
+                  <input
+                    type="password"
+                    name="confirm_password"
+                    id="confirm_password"
+                    class="form-control {% if errors.confirm_password %}is-invalid{% endif %}"
+                    placeholder="Repeat your password"
+                    autocomplete="new-password">
+                  <button class="btn btn-outline-secondary" type="button" id="toggleConfirm" aria-label="Show password confirmation">
+                    <i class="fas fa-eye" id="eyeIconConfirm" aria-hidden="true"></i>
+                  </button>
+                  {% if errors.confirm_password %}
+                  <div class="invalid-feedback">{{ errors.confirm_password }}</div>
+                  {% endif %}
+                </div>
+              </div>
+
+              <div class="mb-4">
+                <label class="form-label required">Sign up as</label>
+                <div class="row g-2">
+                  <div class="col-sm-6">
+                    <label class="form-selectgroup-item">
+                      <input type="radio" name="role" value="student" class="form-selectgroup-input" {% if form_data.role|default:'student' == 'student' %}checked{% endif %}>
+                      <span class="form-selectgroup-label d-flex align-items-start p-3">
+                        <span class="me-3">
+                          <i class="fas fa-graduation-cap text-primary" aria-hidden="true"></i>
+                        </span>
+                        <span>
+                          <span class="form-selectgroup-title">Student</span>
+                          <span class="d-block text-secondary small">Join courses, submit work, and view grades</span>
+                        </span>
+                      </span>
+                    </label>
+                  </div>
+                  <div class="col-sm-6">
+                    <label class="form-selectgroup-item">
+                      <input type="radio" name="role" value="instructor" class="form-selectgroup-input" {% if form_data.role == 'instructor' %}checked{% endif %}>
+                      <span class="form-selectgroup-label d-flex align-items-start p-3">
+                        <span class="me-3">
+                          <i class="fas fa-chalkboard-teacher text-warning" aria-hidden="true"></i>
+                        </span>
+                        <span>
+                          <span class="form-selectgroup-title">Teacher</span>
+                          <span class="d-block text-secondary small">Teach courses and review student work</span>
+                        </span>
+                      </span>
+                    </label>
+                  </div>
+                </div>
+                {% if errors.role %}
+                <div class="text-danger small mt-1">{{ errors.role }}</div>
+                {% endif %}
+              </div>
+
+              <div class="form-footer">
+                <button type="submit" class="btn btn-primary w-100">
+                  <i class="fas fa-user-plus me-2" aria-hidden="true"></i> Create account
+                </button>
+              </div>
+            </form>
+          </div>
         </div>
 
-        <div class="text-center text-secondary mt-3">
-            Already have an account?
-            <a href="{% url 'login' %}" class="text-primary fw-bold">Login</a>
+        <div class="text-center dh-auth-footer mt-3">
+          Already have an account?
+          <a href="{% url 'login' %}">Sign in</a>
         </div>
-
+      </div>
     </div>
-</div>
-{% include 'theme/settings.html' %}
+  </div>
 
-<script src="{% static 'js/tabler.js' %}" defer></script>
-<script src="{% static 'js/demo.js' %}" defer></script>
-<script>
-    document.getElementById('togglePassword').addEventListener('click', function() {
-        const input = document.getElementById('password');
-        const icon = document.getElementById('eyeIcon');
-        if (input.type === 'password') {
-            input.type = 'text';
-            icon.classList.replace('fa-eye', 'fa-eye-slash');
-        } else {
-            input.type = 'password';
-            icon.classList.replace('fa-eye-slash', 'fa-eye');
-        }
-    });
+  {% include 'theme/settings.html' %}
 
-    document.getElementById('toggleConfirm').addEventListener('click', function() {
-        const input = document.getElementById('confirm_password');
-        const icon = document.getElementById('eyeIconConfirm');
-        if (input.type === 'password') {
-            input.type = 'text';
-            icon.classList.replace('fa-eye', 'fa-eye-slash');
-        } else {
-            input.type = 'password';
-            icon.classList.replace('fa-eye-slash', 'fa-eye');
+  <script src="{% static 'js/tabler.js' %}"></script>
+  <script>
+    document.addEventListener('DOMContentLoaded', function () {
+      const toggles = [
+        { button: 'togglePassword', input: 'password', icon: 'eyeIcon' },
+        { button: 'toggleConfirm', input: 'confirm_password', icon: 'eyeIconConfirm' }
+      ];
+
+      toggles.forEach(function (config) {
+        const button = document.getElementById(config.button);
+        const input = document.getElementById(config.input);
+        const icon = document.getElementById(config.icon);
+
+        if (!button || !input || !icon) {
+          return;
         }
+
+        button.addEventListener('click', function () {
+          const isPassword = input.type === 'password';
+          input.type = isPassword ? 'text' : 'password';
+          button.setAttribute('aria-label', isPassword ? 'Hide password' : 'Show password');
+          icon.classList.toggle('fa-eye', !isPassword);
+          icon.classList.toggle('fa-eye-slash', isPassword);
+        });
+      });
     });
-</script>
+  </script>
 </body>
 </html>

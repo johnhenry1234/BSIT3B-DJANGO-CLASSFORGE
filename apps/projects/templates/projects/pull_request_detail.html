@@ -20,7 +20,7 @@
           <div class="btn-list">
             <a href="{% url 'projects:project_detail' project.id %}" class="btn btn-ghost-secondary">Project</a>
             {% if pull_request.source_snapshot %}
-            <a href="{% url 'projects:snapshot_detail' pull_request.source_snapshot.id %}" class="btn btn-outline-secondary">Source version</a>
+            <a href="{% url 'projects:snapshot_detail' pull_request.source_snapshot.id %}" class="btn btn-outline-secondary">Version</a>
             {% endif %}
           </div>
         </div>
@@ -73,7 +73,7 @@
             <label class="form-label">Add a comment</label>
             {{ comment_form.body }}
             {% if comment_form.body.errors %}<div class="text-danger small">{{ comment_form.body.errors }}</div>{% endif %}
-            <button class="btn btn-outline-primary mt-2">Comment</button>
+            <button class="btn btn-outline-primary mt-2">Send</button>
           </form>
         </div>
         {% endif %}
@@ -112,13 +112,13 @@
             {% csrf_token %}
             <input type="hidden" name="action" value="merge">
             <button class="btn btn-success w-100">
-              <i class="fas fa-code-merge me-2"></i> Merge changes
+              <i class="fas fa-code-merge me-2"></i> Merge
             </button>
           </form>
           <form method="POST" onsubmit="return confirm('Close this change review without merging?');">
             {% csrf_token %}
             <input type="hidden" name="action" value="close">
-            <button class="btn btn-outline-danger w-100">Close without merging</button>
+            <button class="btn btn-outline-danger w-100">Close</button>
           </form>
           <p class="text-muted small mb-0">Merging records the change in the project history when available. It does not create or share a grade.</p>
         </div>

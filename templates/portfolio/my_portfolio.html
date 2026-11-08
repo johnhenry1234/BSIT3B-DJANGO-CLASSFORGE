@@ -11,7 +11,7 @@
       <div class="col-auto ms-auto">
         <form method="POST" action="{% url 'portfolio:toggle_visibility' %}" class="d-inline">
           {% csrf_token %}
-          <button class="btn btn-outline-primary">Change visibility</button>
+          <button class="btn btn-outline-primary">Visibility</button>
         </form>
       </div>
     </div>
@@ -38,7 +38,7 @@
           <td class="text-end">
             <form method="POST" action="{% url 'portfolio:add_from_grade' grade.id %}">
               {% csrf_token %}
-              <button class="btn btn-sm btn-primary">Add to portfolio</button>
+              <button class="btn btn-sm btn-primary">Add</button>
             </form>
           </td>
         </tr>

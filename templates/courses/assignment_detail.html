@@ -15,16 +15,16 @@
         </div>
         <div class="col-auto ms-auto">
           <div class="btn-list">
-            <a href="{% url 'courses:course_detail' course.id %}" class="btn btn-ghost-secondary">Back to Course</a>
+            <a href="{% url 'courses:course_detail' course.id %}" class="btn btn-ghost-secondary">Back</a>
             {% if can_manage %}
             <a href="{% url 'courses:assignment_update' assignment.id %}" class="btn btn-outline-primary">Edit</a>
-            <a href="{% url 'courses:assignment_rubric' assignment.id %}" class="btn btn-outline-secondary">Grading checklist</a>
+            <a href="{% url 'courses:assignment_rubric' assignment.id %}" class="btn btn-outline-secondary">Checklist</a>
             <a href="{% url 'projects:project_list' %}?assignment={{ assignment.id }}" class="btn btn-outline-secondary">
               Projects ({{ project_count }})
             </a>
             <form method="POST" action="{% url 'ai:run_assignment' assignment.id %}" class="d-inline">
               {% csrf_token %}
-              <button class="btn btn-outline-info">AI feedback for latest</button>
+              <button class="btn btn-outline-info">Check latest</button>
             </form>
             {% elif is_enrolled %}
             <a href="{% url 'courses:submission_create' assignment.id %}" class="btn btn-primary">
@@ -59,7 +59,7 @@
         <div class="fw-semibold">Projects</div>
         <div class="text-muted small">{{ project_count }} student project{{ project_count|pluralize }} with saved versions and AI feedback.</div>
       </div>
-      <a href="{% url 'projects:project_list' %}?assignment={{ assignment.id }}" class="btn btn-outline-primary ms-auto">Open projects</a>
+      <a href="{% url 'projects:project_list' %}?assignment={{ assignment.id }}" class="btn btn-outline-primary ms-auto">Open</a>
     </div>
   </div>
   {% endif %}
@@ -106,7 +106,7 @@
             </td>
             <td>
               <a href="{% url 'courses:submission_grade' sub.id %}" class="btn btn-sm {% if sub.grade %}btn-outline-primary{% else %}btn-primary{% endif %}">
-                {% if sub.grade %}Edit grade{% else %}Grade{% endif %}
+                {% if sub.grade %}Edit{% else %}Grade{% endif %}
               </a>
             </td>
           </tr>
@@ -123,7 +123,7 @@
     <div class="card-body">
       <form method="POST" action="{% url 'courses:assignment_delete' assignment.id %}" onsubmit="return confirm('Delete this assignment and all its submissions and grades?');">
         {% csrf_token %}
-        <button type="submit" class="btn btn-outline-danger">Delete Assignment</button>
+        <button type="submit" class="btn btn-outline-danger">Delete</button>
       </form>
     </div>
   </div>
@@ -135,11 +135,10 @@
       <div>
         <div class="fw-semibold">{{ my_project.title|default:assignment.title }}</div>
         <div class="text-muted small">
-          {{ my_project.snapshot_count }} saved version{{ my_project.snapshot_count|pluralize }} ·
-          <a href="{% url 'projects:project_detail' my_project.id %}">Open project</a>
+          {{ my_project.snapshot_count }} saved version{{ my_project.snapshot_count|pluralize }}
         </div>
       </div>
-      <a href="{% url 'projects:project_detail' my_project.id %}" class="btn btn-outline-primary ms-auto">Open project</a>
+      <a href="{% url 'projects:project_detail' my_project.id %}" class="btn btn-outline-primary ms-auto">Open</a>
     </div>
   </div>
   {% elif is_enrolled %}
@@ -157,7 +156,7 @@
           <input type="text" name="title" class="form-control" maxlength="255" value="{{ assignment.title }}">
         </div>
         <div class="col-md-3">
-          <button class="btn btn-outline-primary w-100">Create project</button>
+          <button class="btn btn-outline-primary w-100">Create</button>
         </div>
       </form>
     </div>

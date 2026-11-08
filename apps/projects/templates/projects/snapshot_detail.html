@@ -18,14 +18,17 @@
         </div>
         <div class="col-auto ms-auto">
           <div class="btn-list">
-            <a href="{% url 'projects:project_detail' project.id %}" class="btn btn-ghost-secondary">Back to project</a>
+            <a href="{% url 'projects:project_detail' project.id %}" class="btn btn-ghost-secondary">Back</a>
+            <a href="{% url 'projects:snapshot_file_viewer' snapshot.id %}" class="btn btn-primary">
+              <i class="fas fa-code me-2"></i> View files
+            </a>
             {% if previous %}
             <a href="{% url 'projects:snapshot_compare' snapshot.id %}" class="btn btn-outline-secondary">
-              <i class="fas fa-code-compare me-2"></i> Compare with v{{ previous.version }}
+              <i class="fas fa-code-compare me-2"></i> Compare
             </a>
             {% endif %}
             {% if is_owner or can_grade %}
-            <a href="{% url 'projects:pull_request_create' project.id %}" class="btn btn-outline-primary">Send changes for review</a>
+            <a href="{% url 'projects:pull_request_create' project.id %}" class="btn btn-outline-primary">Send changes</a>
             {% endif %}
           </div>
         </div>
@@ -77,8 +80,15 @@
                     <tbody>
                     {% for item in items %}
                     <tr>
-                      <td style="max-width: 360px; white-space: normal;"><code>{{ item.path }}</code></td>
+                      <td style="max-width: 360px; white-space: normal;">
+                        <a class="text-reset text-decoration-none" href="{% url 'projects:snapshot_file_viewer' snapshot.id %}?path={{ item.path|urlencode }}">
+                          <code>{{ item.path }}</code>
+                        </a>
+                      </td>
                       <td class="text-muted text-nowrap">{{ item.size|filesizeformat }}</td>
+                      <td class="text-end">
+                        <a class="btn btn-sm btn-ghost-primary" href="{% url 'projects:snapshot_file_viewer' snapshot.id %}?path={{ item.path|urlencode }}">View</a>
+                      </td>
                     </tr>
                     {% endfor %}
                     </tbody>
@@ -115,7 +125,7 @@
       <div class="card">
         <div class="card-header d-flex align-items-center">
           <div class="card-title">Feedback</div>
-          {% if can_grade %}<a href="{% url 'projects:assessment_queue' %}" class="ms-auto btn btn-sm btn-ghost-secondary">Submissions to review</a>{% endif %}
+          {% if can_grade %}<a href="{% url 'projects:assessment_queue' %}" class="ms-auto btn btn-sm btn-ghost-secondary">Review queue</a>{% endif %}
         </div>
         <div class="card-body">
           {% if assessment %}
@@ -153,10 +163,43 @@
                 </table>
               </div>
               {% endif %}
-              <div class="text-muted small" style="white-space: pre-wrap;">{{ assessment.feedback|truncatechars:900 }}</div>
+              {% with sections=assessment.validation.feedback_sections %}
+              {% if sections %}
+              <div class="dh-feedback mt-3">
+                {% if sections.overview %}<p class="dh-feedback__overview">{{ sections.overview }}</p>{% endif %}
+                {% if sections.strengths %}
+                <div class="dh-feedback__section">
+                  <h4 class="dh-feedback__heading">What you did well</h4>
+                  <ul>
+                    {% for item in sections.strengths %}<li>{{ item }}</li>{% endfor %}
+                  </ul>
+                </div>
+                {% endif %}
+                {% if sections.improvements %}
+                <div class="dh-feedback__section">
+                  <h4 class="dh-feedback__heading">What to improve</h4>
+                  <ul>
+                    {% for item in sections.improvements %}<li>{{ item }}</li>{% endfor %}
+                  </ul>
+                </div>
+                {% endif %}
+                {% if sections.next_steps %}
+                <div class="dh-feedback__section">
+                  <h4 class="dh-feedback__heading">Next steps</h4>
+                  <ol>
+                    {% for item in sections.next_steps %}<li>{{ item }}</li>{% endfor %}
+                  </ol>
+                </div>
+                {% endif %}
+                {% if sections.note %}<p class="dh-feedback__note">{{ sections.note }}</p>{% endif %}
+              </div>
+              {% else %}
+              <div class="dh-feedback mt-3"><div class="dh-feedback__raw small text-muted">{{ assessment.feedback }}</div></div>
+              {% endif %}
+              {% endwith %}
               <div class="btn-list mt-3">
                 {% if can_grade %}
-                <a href="{% url 'projects:assessment_review' assessment.id %}" class="btn btn-primary btn-sm">Review feedback</a>
+                <a href="{% url 'projects:assessment_review' assessment.id %}" class="btn btn-primary btn-sm">Review</a>
                 {% endif %}
               </div>
             {% elif assessment.status == 'failed' %}
@@ -164,7 +207,7 @@
               {% if can_grade %}
               <form method="POST" action="{% url 'projects:assessment_retry' assessment.id %}">
                 {% csrf_token %}
-                <button class="btn btn-outline-danger btn-sm">Try again</button>
+                <button class="btn btn-outline-danger btn-sm">Retry</button>
               </form>
               {% endif %}
             {% endif %}
@@ -173,7 +216,7 @@
             {% if is_owner or can_grade %}
             <form method="POST" action="{% url 'projects:snapshot_assess' snapshot.id %}">
               {% csrf_token %}
-              <button class="btn btn-primary w-100"><i class="fas fa-wand-magic-sparkles me-2"></i> Check my work</button>
+              <button class="btn btn-primary w-100"><i class="fas fa-wand-magic-sparkles me-2"></i> Check work</button>
             </form>
             {% endif %}
           {% endif %}

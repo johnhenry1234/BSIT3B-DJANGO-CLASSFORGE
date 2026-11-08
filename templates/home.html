@@ -2,86 +2,193 @@
 {% load static %}
 {% block content %}
 <div class="container-xl">
-  <div class="page-header d-print-none" aria-label="Page header">
-    <div class="container-xl">
-      <div class="row align-items-center">
-        <div class="col">
-          <div class="page-pretitle">Overview</div>
-          <div class="d-flex align-items-center gap-3 flex-wrap d-none d-md-flex">
-            <h2 class="page-title mb-0">Dashboard</h2>
-            {% if role == 'student' and unseen_count %}
-            <span class="badge bg-red">{{ unseen_count }} New</span>
-            {% endif %}
-          </div>
-          <h2 class="page-title mb-0 d-md-none">Dashboard</h2>
+  <div class="dh-hero d-print-none" aria-label="Dashboard header">
+    <div class="dh-hero-inner row align-items-center g-3">
+      <div class="col-lg">
+        <div class="dh-hero-pretitle">
+          Dashboard ·
+          {% if role == 'admin' %}Administrator{% elif role == 'instructor' %}Teacher{% else %}Student{% endif %}
         </div>
-        <div class="col-auto ms-auto">
-          <div class="btn-list">
-            <a href="{% url 'courses:course_list' %}" class="btn btn-primary">
-              <i class="fas fa-book me-2"></i> Go to Courses
-            </a>
-            {% if role == 'instructor' or user.is_staff or user.is_superuser %}
-            <a href="{% url 'courses:grading_queue' %}" class="btn btn-outline-primary">
-              <i class="fas fa-check-double me-2"></i> Students to grade
-            </a>
-            {% endif %}
-          </div>
+        <h1 class="dh-hero-title">Welcome back, {{ user.get_full_name|default:user.username }}</h1>
+        <p class="dh-hero-sub mb-0">
+          {% if role == 'admin' %}
+          Here is a quick snapshot of courses, student work, and grading across ClassForge.
+          {% elif role == 'instructor' %}
+          Here is what your classes need today — recent work, deadlines, and grading.
+          {% else %}
+          Pick up where you left off, submit your work, and keep track of your grades.
+          {% endif %}
+        </p>
+      </div>
+      <div class="col-lg-auto">
+        <div class="btn-list justify-content-lg-end">
+          <a href="{% url 'courses:course_list' %}" class="btn btn-accent">
+            <i class="fas fa-book me-2"></i> Courses
+          </a>
+          {% if role == 'instructor' or user.is_staff or user.is_superuser %}
+          <a href="{% url 'courses:grading_queue' %}" class="btn btn-outline-light">
+            <i class="fas fa-check-double me-2"></i> Grading
+          </a>
+          {% endif %}
         </div>
+        {% if role == 'student' and unseen_count %}
+        <div class="text-lg-end mt-2">
+          <span class="badge bg-red">{{ unseen_count }} New</span>
+        </div>
+        {% endif %}
       </div>
     </div>
   </div>
-  <br>
 
   {% if role == 'admin' %}
   <div class="row row-cards">
     <div class="col-sm-6 col-lg-3">
-      <div class="card"><div class="card-body"><div class="subheader">Courses</div><div class="h1 mb-0">{{ stats.courses }}</div></div></div>
+      <div class="card dh-metric-card dh-metric-card--primary">
+        <div class="card-body d-flex align-items-start justify-content-between gap-3">
+          <div>
+            <div class="dh-metric-label">Courses</div>
+            <div class="dh-metric-value">{{ stats.courses }}</div>
+            <div class="dh-metric-note">Active in the catalog</div>
+          </div>
+          <span class="dh-metric-icon" aria-hidden="true"><i class="fas fa-book"></i></span>
+        </div>
+      </div>
     </div>
     <div class="col-sm-6 col-lg-3">
-      <div class="card"><div class="card-body"><div class="subheader">Assignments</div><div class="h1 mb-0">{{ stats.assignments }}</div></div></div>
+      <div class="card dh-metric-card dh-metric-card--info">
+        <div class="card-body d-flex align-items-start justify-content-between gap-3">
+          <div>
+            <div class="dh-metric-label">Assignments</div>
+            <div class="dh-metric-value">{{ stats.assignments }}</div>
+            <div class="dh-metric-note">Across all courses</div>
+          </div>
+          <span class="dh-metric-icon" aria-hidden="true"><i class="fas fa-clipboard-list"></i></span>
+        </div>
+      </div>
     </div>
     <div class="col-sm-6 col-lg-3">
-      <div class="card"><div class="card-body"><div class="subheader">Submissions</div><div class="h1 mb-0">{{ stats.submissions }}</div></div></div>
+      <div class="card dh-metric-card dh-metric-card--success">
+        <div class="card-body d-flex align-items-start justify-content-between gap-3">
+          <div>
+            <div class="dh-metric-label">Submissions</div>
+            <div class="dh-metric-value">{{ stats.submissions }}</div>
+            <div class="dh-metric-note">Student work received</div>
+          </div>
+          <span class="dh-metric-icon" aria-hidden="true"><i class="fas fa-file-lines"></i></span>
+        </div>
+      </div>
     </div>
     <div class="col-sm-6 col-lg-3">
-      <div class="card"><div class="card-body"><div class="subheader">Waiting to grade</div><div class="h1 mb-0">{{ stats.pending_grades }}</div></div></div>
+      <div class="card dh-metric-card dh-metric-card--warning">
+        <div class="card-body d-flex align-items-start justify-content-between gap-3">
+          <div>
+            <div class="dh-metric-label">Waiting to grade</div>
+            <div class="dh-metric-value">{{ stats.pending_grades }}</div>
+            <div class="dh-metric-note">Needs review</div>
+          </div>
+          <span class="dh-metric-icon" aria-hidden="true"><i class="fas fa-hourglass-half"></i></span>
+        </div>
+      </div>
     </div>
   </div>
   {% elif role == 'instructor' %}
   <div class="row row-cards">
     <div class="col-sm-6 col-lg-3">
-      <div class="card"><div class="card-body"><div class="subheader">My Courses</div><div class="h1 mb-0">{{ stats.courses }}</div></div></div>
+      <div class="card dh-metric-card dh-metric-card--primary">
+        <div class="card-body d-flex align-items-start justify-content-between gap-3">
+          <div>
+            <div class="dh-metric-label">My courses</div>
+            <div class="dh-metric-value">{{ stats.courses }}</div>
+            <div class="dh-metric-note">Classes you teach</div>
+          </div>
+          <span class="dh-metric-icon" aria-hidden="true"><i class="fas fa-book"></i></span>
+        </div>
+      </div>
     </div>
     <div class="col-sm-6 col-lg-3">
-      <div class="card"><div class="card-body"><div class="subheader">Assignments</div><div class="h1 mb-0">{{ stats.assignments }}</div></div></div>
+      <div class="card dh-metric-card dh-metric-card--info">
+        <div class="card-body d-flex align-items-start justify-content-between gap-3">
+          <div>
+            <div class="dh-metric-label">Assignments</div>
+            <div class="dh-metric-value">{{ stats.assignments }}</div>
+            <div class="dh-metric-note">Across your courses</div>
+          </div>
+          <span class="dh-metric-icon" aria-hidden="true"><i class="fas fa-clipboard-list"></i></span>
+        </div>
+      </div>
     </div>
     <div class="col-sm-6 col-lg-3">
-      <div class="card"><div class="card-body"><div class="subheader">Students</div><div class="h1 mb-0">{{ stats.students }}</div></div></div>
+      <div class="card dh-metric-card dh-metric-card--success">
+        <div class="card-body d-flex align-items-start justify-content-between gap-3">
+          <div>
+            <div class="dh-metric-label">Students</div>
+            <div class="dh-metric-value">{{ stats.students }}</div>
+            <div class="dh-metric-note">Enrolled learners</div>
+          </div>
+          <span class="dh-metric-icon" aria-hidden="true"><i class="fas fa-user-graduate"></i></span>
+        </div>
+      </div>
     </div>
     <div class="col-sm-6 col-lg-3">
-      <div class="card"><div class="card-body"><div class="subheader">Waiting to grade</div><div class="h1 mb-0">{{ stats.pending_grades }}</div></div></div>
+      <div class="card dh-metric-card dh-metric-card--warning">
+        <div class="card-body d-flex align-items-start justify-content-between gap-3">
+          <div>
+            <div class="dh-metric-label">Waiting to grade</div>
+            <div class="dh-metric-value">{{ stats.pending_grades }}</div>
+            <div class="dh-metric-note">Needs your review</div>
+          </div>
+          <span class="dh-metric-icon" aria-hidden="true"><i class="fas fa-hourglass-half"></i></span>
+        </div>
+      </div>
     </div>
   </div>
   <div class="row row-cards mt-1">
     <div class="col-sm-6 col-lg-3">
-      <div class="card"><div class="card-body"><div class="subheader">Submission rate</div><div class="h1 mb-0">{{ stats.submission_rate }}%</div></div></div>
+      <div class="card dh-metric-card dh-metric-card--success">
+        <div class="card-body d-flex align-items-start justify-content-between gap-3">
+          <div>
+            <div class="dh-metric-label">Submission rate</div>
+            <div class="dh-metric-value">{{ stats.submission_rate }}%</div>
+            <div class="dh-metric-note">Latest assignment</div>
+          </div>
+          <span class="dh-metric-icon" aria-hidden="true"><i class="fas fa-chart-line"></i></span>
+        </div>
+      </div>
     </div>
     <div class="col-sm-6 col-lg-3">
-      <div class="card"><div class="card-body"><div class="subheader">Not graded</div><div class="h1 mb-0">{{ stats.ungraded_count }}</div></div></div>
+      <div class="card dh-metric-card dh-metric-card--danger">
+        <div class="card-body d-flex align-items-start justify-content-between gap-3">
+          <div>
+            <div class="dh-metric-label">Not graded</div>
+            <div class="dh-metric-value">{{ stats.ungraded_count }}</div>
+            <div class="dh-metric-note">Still to review</div>
+          </div>
+          <span class="dh-metric-icon" aria-hidden="true"><i class="fas fa-circle-exclamation"></i></span>
+        </div>
+      </div>
     </div>
     <div class="col-sm-6 col-lg-3">
-      <div class="card"><div class="card-body"><div class="subheader">Upcoming Deadlines</div><div class="h1 mb-0">{{ stats.upcoming_deadlines }}</div></div></div>
+      <div class="card dh-metric-card dh-metric-card--warning">
+        <div class="card-body d-flex align-items-start justify-content-between gap-3">
+          <div>
+            <div class="dh-metric-label">Upcoming deadlines</div>
+            <div class="dh-metric-value">{{ stats.upcoming_deadlines }}</div>
+            <div class="dh-metric-note">Next 30 days</div>
+          </div>
+          <span class="dh-metric-icon" aria-hidden="true"><i class="fas fa-calendar-day"></i></span>
+        </div>
+      </div>
     </div>
     <div class="col-sm-6 col-lg-3">
-      <div class="card"><div class="card-body d-flex align-items-center justify-content-between">
-        <div>
-          <div class="subheader">Quick Actions</div>
-          <div class="mt-2">
-            <a href="{% url 'courses:course_list' %}" class="btn btn-sm btn-primary">Manage courses</a>
+      <div class="card dh-metric-card dh-metric-card--primary">
+        <div class="card-body">
+          <div class="dh-metric-label">Quick actions</div>
+          <div class="d-flex gap-2 flex-wrap mt-2">
+            <a href="{% url 'courses:course_list' %}" class="btn btn-sm btn-primary">Courses</a>
+            <a href="{% url 'courses:grading_queue' %}" class="btn btn-sm btn-outline-primary">Grading</a>
           </div>
         </div>
-        <i class="fas fa-bolt text-primary"></i>
-      </div></div>
+      </div>
     </div>
   </div>
   <div class="row mt-3">
@@ -90,7 +197,7 @@
         <div class="card-header">
           <h3 class="card-title">Recent student work</h3>
           <div class="card-actions">
-            <a href="{% url 'courses:grading_queue' %}" class="btn btn-sm btn-primary">Start grading</a>
+            <a href="{% url 'courses:grading_queue' %}" class="btn btn-sm btn-primary">Grade</a>
           </div>
         </div>
         <div class="list-group list-group-flush list-group-hoverable">
@@ -149,16 +256,52 @@
   {% endif %}
   <div class="row row-cards">
     <div class="col-sm-6 col-lg-3">
-      <div class="card"><div class="card-body"><div class="subheader">My courses</div><div class="h1 mb-0">{{ stats.courses }}</div></div></div>
+      <div class="card dh-metric-card dh-metric-card--primary">
+        <div class="card-body d-flex align-items-start justify-content-between gap-3">
+          <div>
+            <div class="dh-metric-label">My courses</div>
+            <div class="dh-metric-value">{{ stats.courses }}</div>
+            <div class="dh-metric-note">This term</div>
+          </div>
+          <span class="dh-metric-icon" aria-hidden="true"><i class="fas fa-book"></i></span>
+        </div>
+      </div>
     </div>
     <div class="col-sm-6 col-lg-3">
-      <div class="card"><div class="card-body"><div class="subheader">Not submitted yet</div><div class="h1 mb-0">{{ stats.pending_submissions }}</div></div></div>
+      <div class="card dh-metric-card dh-metric-card--warning">
+        <div class="card-body d-flex align-items-start justify-content-between gap-3">
+          <div>
+            <div class="dh-metric-label">Not submitted yet</div>
+            <div class="dh-metric-value">{{ stats.pending_submissions }}</div>
+            <div class="dh-metric-note">Needs your attention</div>
+          </div>
+          <span class="dh-metric-icon" aria-hidden="true"><i class="fas fa-hourglass-half"></i></span>
+        </div>
+      </div>
     </div>
     <div class="col-sm-6 col-lg-3">
-      <div class="card"><div class="card-body"><div class="subheader">My submitted work</div><div class="h1 mb-0">{{ stats.submissions }}</div></div></div>
+      <div class="card dh-metric-card dh-metric-card--info">
+        <div class="card-body d-flex align-items-start justify-content-between gap-3">
+          <div>
+            <div class="dh-metric-label">My submitted work</div>
+            <div class="dh-metric-value">{{ stats.submissions }}</div>
+            <div class="dh-metric-note">Work handed in</div>
+          </div>
+          <span class="dh-metric-icon" aria-hidden="true"><i class="fas fa-file-lines"></i></span>
+        </div>
+      </div>
     </div>
     <div class="col-sm-6 col-lg-3">
-      <div class="card"><div class="card-body"><div class="subheader">Shared grades</div><div class="h1 mb-0">{{ stats.published_grades }}</div></div></div>
+      <div class="card dh-metric-card dh-metric-card--success">
+        <div class="card-body d-flex align-items-start justify-content-between gap-3">
+          <div>
+            <div class="dh-metric-label">Shared grades</div>
+            <div class="dh-metric-value">{{ stats.published_grades }}</div>
+            <div class="dh-metric-note">Ready to view</div>
+          </div>
+          <span class="dh-metric-icon" aria-hidden="true"><i class="fas fa-award"></i></span>
+        </div>
+      </div>
     </div>
   </div>
   <div class="card mt-3">
@@ -192,9 +335,9 @@
             {% if post.status == 'Not submitted' %}
             <button class="btn btn-sm btn-primary" data-bs-toggle="modal" data-bs-target="#submitModal-{{ post.assignment.id }}">Submit</button>
             {% elif post.status == 'Submitted' %}
-            <button class="btn btn-sm btn-outline-primary" data-bs-toggle="modal" data-bs-target="#submitModal-{{ post.assignment.id }}">Submit again</button>
+            <button class="btn btn-sm btn-outline-primary" data-bs-toggle="modal" data-bs-target="#submitModal-{{ post.assignment.id }}">Resubmit</button>
             {% else %}
-            <a href="{% url 'courses:my_grades' %}" class="btn btn-sm btn-ghost-primary">View grade</a>
+            <a href="{% url 'courses:my_grades' %}" class="btn btn-sm btn-ghost-primary">Grade</a>
             {% endif %}
           </div>
         </div>
@@ -231,7 +374,7 @@
           </div>
           <div class="modal-footer">
             <button type="button" class="btn btn-link" data-bs-dismiss="modal">Cancel</button>
-            <button type="submit" class="btn btn-primary">Submit work</button>
+            <button type="submit" class="btn btn-primary">Submit</button>
           </div>
         </form>
       </div>
@@ -241,8 +384,8 @@
   {% endfor %}
 
   <div class="mt-3">
-    <a href="{% url 'courses:my_grades' %}" class="btn btn-outline-primary"><i class="fas fa-graduation-cap me-2"></i>View my grades</a>
-    <a href="{% url 'courses:student_history' %}" class="btn btn-outline-secondary"><i class="fas fa-history me-2"></i>My history</a>
+    <a href="{% url 'courses:my_grades' %}" class="btn btn-outline-primary"><i class="fas fa-graduation-cap me-2"></i>My grades</a>
+    <a href="{% url 'courses:student_history' %}" class="btn btn-outline-secondary"><i class="fas fa-history me-2"></i>History</a>
   </div>
   {% endif %}
 

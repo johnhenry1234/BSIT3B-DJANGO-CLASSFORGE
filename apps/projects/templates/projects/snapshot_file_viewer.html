@@ -1,0 +1,229 @@
+{% extends "theme/base.html" %}
+{% block content %}
+<div class="container-xl">
+  <div class="page-header d-print-none" aria-label="Page header">
+    <div class="container-xl">
+      <div class="row align-items-center">
+        <div class="col">
+          <div class="page-pretitle">
+            <a href="{% url 'projects:project_detail' project.id %}" class="text-muted">{{ project.title|default:project.assignment.title }}</a>
+            · Saved version v{{ snapshot.version }}
+          </div>
+          <h2 class="page-title mb-0">Review files</h2>
+          <div class="text-muted mt-1">
+            {{ snapshot.file_count }} file{{ snapshot.file_count|pluralize }} · {{ snapshot.total_bytes|filesizeformat }}
+            {% if selected_file %} · <code>{{ selected_file.path }}</code>{% endif %}
+          </div>
+        </div>
+        <div class="col-auto ms-auto">
+          <div class="btn-list">
+            <a href="{% url 'projects:snapshot_detail' snapshot.id %}" class="btn btn-ghost-secondary">Back</a>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+  <br>
+
+  {% for message in messages %}
+  <div class="alert {% if message.tags == 'error' %}alert-danger{% elif message.tags == 'warning' %}alert-warning{% elif message.tags == 'success' %}alert-success{% else %}alert-info{% endif %} alert-dismissible" role="alert">
+    <div>{{ message }}</div>
+    <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+  </div>
+  {% endfor %}
+
+  {% if file_error %}
+  <div class="alert alert-warning" role="alert">
+    <div class="d-flex align-items-center">
+      <i class="fas fa-triangle-exclamation me-2" aria-hidden="true"></i>
+      <div>{{ file_error }}</div>
+    </div>
+  </div>
+  {% endif %}
+
+  {% if manifest %}
+  <div class="row row-cards cf-file-viewer">
+    <div class="col-lg-4 col-xl-3">
+      <div class="card cf-file-browser">
+        <div class="card-header">
+          <div class="card-title">Files</div>
+          <span class="badge bg-secondary-lt text-secondary ms-auto">{{ manifest|length }}</span>
+        </div>
+        <div class="card-body p-2 border-bottom">
+          <label class="visually-hidden" for="cf-file-filter">Find a file</label>
+          <input id="cf-file-filter" type="search" class="form-control form-control-sm" placeholder="Find a file" autocomplete="off">
+        </div>
+        <div class="cf-file-tree" id="cf-file-tree">
+          {% for node in file_tree %}
+            {% if node.type == 'dir' %}
+            <div class="cf-file-tree__dir" data-cf-type="dir" data-cf-path="{{ node.path }}" style="--cf-depth: {{ node.depth }};">
+              <i class="fas fa-folder me-2" aria-hidden="true"></i>{{ node.name }}
+            </div>
+            {% else %}
+            <a class="cf-file-tree__file{% if node.path == selected_path %} active{% endif %}"
+               data-cf-type="file"
+               data-cf-path="{{ node.path }}"
+               style="--cf-depth: {{ node.depth }};"
+               href="{% url 'projects:snapshot_file_viewer' snapshot.id %}?path={{ node.path|urlencode }}"
+               {% if node.path == selected_path %}aria-current="page"{% endif %}>
+              <i class="fas {{ node.icon }} me-2" aria-hidden="true"></i>
+              <span class="text-truncate">{{ node.name }}</span>
+            </a>
+            {% endif %}
+          {% empty %}
+          <div class="p-3 text-muted">No files.</div>
+          {% endfor %}
+        </div>
+      </div>
+    </div>
+
+    <div class="col-lg-8 col-xl-9">
+      {% if selected_file %}
+      <div class="card cf-file-panel">
+        <div class="card-header">
+          <div class="d-flex align-items-center gap-2 cf-file-title">
+            <i class="fas {{ selected_file.icon }} text-muted" aria-hidden="true"></i>
+            <span class="cf-file-name text-truncate">{{ selected_file.path }}</span>
+            <span class="badge bg-azure-lt text-azure">{{ selected_file.language }}</span>
+            <span class="badge bg-secondary-lt text-secondary">Read only</span>
+          </div>
+          <div class="ms-auto d-flex align-items-center gap-2">
+            <span class="text-muted small text-nowrap">{{ selected_file.size|filesizeformat }}</span>
+            {% if selected_file.is_text %}
+            <button type="button" class="btn btn-sm btn-outline-secondary" id="cf-copy-file">
+              <i class="fas fa-copy me-1" aria-hidden="true"></i><span class="cf-copy-label">Copy</span>
+            </button>
+            {% endif %}
+          </div>
+        </div>
+
+        {% if selected_file.is_text %}
+          {% if selected_file.truncated or selected_file.lines_truncated %}
+          <div class="alert alert-info border-0 rounded-0 mb-0 py-2 small" role="status">
+            This file is large, so only the first part is shown.
+          </div>
+          {% endif %}
+          <div class="cf-code" role="region" aria-label="Content of {{ selected_file.path }}" tabindex="0">
+            {% for line in selected_file.lines %}
+            <div class="cf-code__line"><span class="cf-code__number" aria-hidden="true">{{ forloop.counter }}</span><span class="cf-code__content">{% if line %}{{ line|safe }}{% else %}&nbsp;{% endif %}</span></div>
+            {% empty %}
+            <div class="cf-code__line"><span class="cf-code__number" aria-hidden="true">1</span><span class="cf-code__content">&nbsp;</span></div>
+            {% endfor %}
+          </div>
+          <textarea id="cf-file-source" class="d-none" aria-hidden="true">{{ selected_file.content }}</textarea>
+        {% else %}
+          <div class="card-body">
+            <div class="empty py-4">
+              <div class="empty-icon"><i class="fas fa-file fa-2x text-muted" aria-hidden="true"></i></div>
+              <p class="empty-title">This file is not plain text</p>
+              <p class="empty-subtitle text-muted">The file is saved with the submission, but it cannot be opened in the text viewer.</p>
+            </div>
+          </div>
+        {% endif %}
+
+        <div class="card-footer d-flex align-items-center text-muted small">
+          {% if selected_file.is_text %}
+          <span>{{ selected_file.line_count }} line{{ selected_file.line_count|pluralize }}{% if selected_file.lines_truncated %} shown{% endif %}</span>
+          {% else %}
+          <span>Binary file</span>
+          {% endif %}
+          <span class="ms-auto">Saved versions cannot be changed here.</span>
+        </div>
+      </div>
+      {% elif not file_error %}
+      <div class="card">
+        <div class="card-body">
+          <div class="empty py-4">
+            <div class="empty-icon"><i class="fas fa-folder-open fa-2x text-muted" aria-hidden="true"></i></div>
+            <p class="empty-title">Choose a file</p>
+            <p class="empty-subtitle text-muted">Select a file from the list to review it here.</p>
+          </div>
+        </div>
+      </div>
+      {% endif %}
+    </div>
+  </div>
+  {% else %}
+  <div class="empty">
+    <div class="empty-icon"><i class="fas fa-folder-open fa-2x text-muted" aria-hidden="true"></i></div>
+    <p class="empty-title">No files in this saved version</p>
+    <p class="empty-subtitle text-muted">Upload a new version to review its files.</p>
+  </div>
+  {% endif %}
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+  document.addEventListener("DOMContentLoaded", function () {
+    var filter = document.getElementById("cf-file-filter");
+    var tree = document.getElementById("cf-file-tree");
+    if (filter && tree) {
+      var nodes = Array.prototype.slice.call(tree.querySelectorAll("[data-cf-type]"));
+      filter.addEventListener("input", function () {
+        var query = filter.value.trim().toLowerCase();
+        nodes.forEach(function (node) {
+          if (node.getAttribute("data-cf-type") !== "file") {
+            return;
+          }
+          var path = node.getAttribute("data-cf-path").toLowerCase();
+          node.hidden = Boolean(query) && path.indexOf(query) === -1;
+        });
+        nodes.forEach(function (node) {
+          if (node.getAttribute("data-cf-type") !== "dir") {
+            return;
+          }
+          var prefix = node.getAttribute("data-cf-path").toLowerCase() + "/";
+          var hasMatch = nodes.some(function (child) {
+            return (
+              child.getAttribute("data-cf-type") === "file" &&
+              !child.hidden &&
+              child.getAttribute("data-cf-path").toLowerCase().indexOf(prefix) === 0
+            );
+          });
+          node.hidden = Boolean(query) && !hasMatch;
+        });
+      });
+    }
+
+    var copyButton = document.getElementById("cf-copy-file");
+    var source = document.getElementById("cf-file-source");
+    if (copyButton && source) {
+      var label = copyButton.querySelector(".cf-copy-label");
+      var showCopied = function () {
+        if (!label) {
+          return;
+        }
+        var original = label.textContent;
+        label.textContent = "Copied";
+        window.setTimeout(function () {
+          label.textContent = original;
+        }, 1600);
+      };
+      var fallbackCopy = function () {
+        var temporary = document.createElement("textarea");
+        temporary.value = source.value;
+        temporary.setAttribute("readonly", "");
+        temporary.style.position = "fixed";
+        temporary.style.left = "-9999px";
+        document.body.appendChild(temporary);
+        temporary.select();
+        try {
+          document.execCommand("copy");
+        } catch (error) {
+          // The browser may still block clipboard access.
+        }
+        document.body.removeChild(temporary);
+        showCopied();
+      };
+      copyButton.addEventListener("click", function () {
+        if (navigator.clipboard && navigator.clipboard.writeText) {
+          navigator.clipboard.writeText(source.value).then(showCopied).catch(fallbackCopy);
+        } else {
+          fallbackCopy();
+        }
+      });
+    }
+  });
+</script>
+{% endblock %}

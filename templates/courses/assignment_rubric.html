@@ -9,7 +9,7 @@
         <div class="text-muted mt-1">{{ assignment.title }}</div>
       </div>
       <div class="col-auto ms-auto">
-        <a href="{% url 'courses:assignment_detail' assignment.id %}" class="btn btn-ghost-secondary">Back to Assignment</a>
+        <a href="{% url 'courses:assignment_detail' assignment.id %}" class="btn btn-ghost-secondary">Back</a>
       </div>
     </div>
   </div>
@@ -36,7 +36,7 @@
           {{ rubric_form.instructions }}
         </div>
       </div>
-      <div class="card-footer"><button class="btn btn-primary">Save checklist</button></div>
+      <div class="card-footer"><button class="btn btn-primary">Save</button></div>
     </form>
   </div>
 
@@ -86,7 +86,7 @@
         <div class="col-md-4"><label class="form-label">AI instructions</label>{{ criterion_form.ai_instructions }}</div>
         <div class="col-md-4"><label class="form-label">Feedback guidance</label>{{ criterion_form.feedback_requirements }}</div>
       </div>
-      <div class="card-footer"><button class="btn btn-outline-primary">Add checklist item</button></div>
+      <div class="card-footer"><button class="btn btn-outline-primary">Add</button></div>
     </form>
   </div>
 
@@ -120,7 +120,7 @@
           Saving a version keeps a permanent copy of the checklist. Feedback created afterward uses this version, so later edits do not change past feedback.
         </p>
         <button class="btn btn-primary" onclick="return confirm('Save a new checklist version?');">
-          <i class="fas fa-lock me-2"></i> Save checklist version
+          <i class="fas fa-lock me-2"></i> Save version
         </button>
       </div>
     </form>

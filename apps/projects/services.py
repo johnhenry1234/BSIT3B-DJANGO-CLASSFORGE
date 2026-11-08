@@ -173,6 +173,11 @@ def _is_text_path(path):
     return _extension(path) in TEXT_EXTENSIONS
 
 
+def is_text_path(path):
+    """Public helper for displays that need to know whether to read a file."""
+    return _is_text_path(path)
+
+
 # ---------------------------------------------------------------------------
 # Canonical zip creation
 # ---------------------------------------------------------------------------
@@ -359,6 +364,110 @@ def read_archive_bytes(snapshot):
         raise ValidationError(
             f'The saved version archive is unavailable: {exc.__class__.__name__}.'
         )
+
+
+# ---------------------------------------------------------------------------
+# Read-only saved-version file viewer
+# ---------------------------------------------------------------------------
+
+MAX_VIEW_BYTES = 400_000
+
+
+def _read_zip_entry(fileobj, path, limit):
+    try:
+        archive = zipfile.ZipFile(fileobj)
+    except (zipfile.BadZipFile, OSError) as exc:
+        raise ValidationError(
+            'The saved version archive could not be opened.'
+        ) from exc
+
+    with archive:
+        try:
+            info = archive.getinfo(path)
+        except KeyError as exc:
+            raise ValidationError(
+                f'File not found in the saved version: {path}'
+            ) from exc
+        if info.is_dir():
+            raise ValidationError(f'The selected path is a folder: {path}')
+        if info.flag_bits & 0x1:
+            raise ValidationError('That file cannot be shown because it is encrypted.')
+        try:
+            with archive.open(info) as entry:
+                return entry.read(limit)
+        except (RuntimeError, OSError, zipfile.BadZipFile) as exc:
+            raise ValidationError(
+                'That file could not be read from the saved version.'
+            ) from exc
+
+
+def _read_snapshot_entry(snapshot, path, limit):
+    """Read up to ``limit`` bytes for one entry without extracting it."""
+    try:
+        with snapshot.archive.open('rb') as handle:
+            seekable = getattr(handle, 'seekable', None)
+            if seekable is not None and not seekable():
+                raise io.UnsupportedOperation('The archive stream is not seekable.')
+            return _read_zip_entry(handle, path, limit)
+    except io.UnsupportedOperation:
+        # Some storage backends return a non-seekable stream.  In that case
+        # fall back to reading the archive into memory, which is still safe.
+        pass
+    except (OSError, ValueError) as exc:
+        raise ValidationError(
+            'The saved version archive could not be opened.'
+        ) from exc
+
+    archive_bytes = read_archive_bytes(snapshot)
+    return _read_zip_entry(io.BytesIO(archive_bytes), path, limit)
+
+
+def _payload_is_text(path, data, manifest_item):
+    if b'\x00' in data[:8192]:
+        return False
+    if manifest_item.get('is_text') or _is_text_path(path):
+        return True
+    if not data:
+        return True
+    sample = data[:8192]
+    decoded = sample.decode('utf-8', errors='replace')
+    bad = decoded.count('\ufffd')
+    bad += sum(
+        1 for char in decoded
+        if ord(char) < 32 and char not in '\n\r\t'
+    )
+    return bad / max(len(decoded), 1) <= 0.05
+
+
+def read_snapshot_file(snapshot, path, max_bytes=MAX_VIEW_BYTES):
+    """Return safe metadata and bytes for a file in a saved version.
+
+    The archive is read entry by entry; it is never extracted, executed or
+    modified.  Large files are truncated rather than rejected so a reviewer
+    can still inspect the beginning of the file.
+    """
+    path = normalise_path(path)
+    manifest = snapshot.manifest or []
+    item = next(
+        (entry for entry in manifest if entry.get('path') == path),
+        None,
+    )
+    if item is None:
+        raise ValidationError('That file is not in this saved version.')
+
+    declared_size = int(item.get('size') or 0)
+    data = _read_snapshot_entry(snapshot, path, max_bytes + 1)
+    truncated = declared_size > max_bytes or len(data) > max_bytes
+    data = data[:max_bytes]
+
+    return {
+        'path': path,
+        'size': max(declared_size, len(data)),
+        'extension': _extension(path),
+        'data': data,
+        'truncated': truncated,
+        'is_text': _payload_is_text(path, data, item),
+    }
 
 
 # ---------------------------------------------------------------------------

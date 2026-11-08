@@ -9,7 +9,7 @@
         <div class="text-muted mt-1">Latest work from each student that has not been graded yet. Share grades when ready.</div>
       </div>
       <div class="col-auto ms-auto">
-        <a href="{% url 'courses:course_list' %}" class="btn btn-ghost-secondary">Back to Courses</a>
+        <a href="{% url 'courses:course_list' %}" class="btn btn-ghost-secondary">Back</a>
       </div>
     </div>
   </div>
@@ -26,7 +26,7 @@
     <div class="card">
       <div class="card-header d-flex align-items-center">
         <div class="card-title">Waiting for a grade ({{ queue|length }})</div>
-        <button class="btn btn-primary btn-sm ms-auto">Share selected grades</button>
+        <button class="btn btn-primary btn-sm ms-auto">Share grades</button>
       </div>
       <div class="table-responsive">
         <table class="table table-vcenter card-table">
