@@ -13,11 +13,9 @@ import {
   AssessmentSummary,
   ClassForgeApiError,
   ClassForgeClient,
-  RevisionRequestSummary,
   SnapshotSummary,
 } from './api';
 import { collectFiles, humanBytes, manifestFor } from './files';
-import { createRevisionBranch } from './git';
 
 const TOKEN_KEY = 'classforge.token';
 const COURSE_KEY = 'classforge.courseId';
@@ -453,57 +451,6 @@ export function activate(context: vscode.ExtensionContext): void {
       language: 'markdown',
     });
     await vscode.window.showTextDocument(document, { preview: true });
-  });
-
-  register('classforge.createRevisionBranch', async () => {
-    const client = await authenticatedClient();
-    let assignmentId = context.workspaceState.get<number>(ASSIGNMENT_KEY);
-    if (!assignmentId) {
-      assignmentId = await selectAssignment();
-    }
-    if (!assignmentId) {
-      return;
-    }
-    const assignment = await client.assignmentDetail(assignmentId);
-    if (!assignment.project) {
-      throw new Error('Upload project files before starting requested changes.');
-    }
-    const revisions = (await client.listRevisions(assignment.project.id)).filter(
-      (revision) => revision.status === 'open',
-    );
-    if (!revisions.length) {
-      await vscode.window.showInformationMessage(
-        'There are no open change requests for this project.',
-      );
-      return;
-    }
-    const picked = await vscode.window.showQuickPick(
-      revisions.map((revision: RevisionRequestSummary) => ({
-        label: revision.title,
-        description: revision.branch_name || undefined,
-        detail: revision.description,
-        revision,
-      })),
-      { placeHolder: 'Select the change request to work on' },
-    );
-    if (!picked) {
-      return;
-    }
-    const branch = await createRevisionBranch(
-      workspaceRoot(),
-      assignment.project.id,
-      picked.revision.title,
-      undefined,
-      picked.revision.branch_name || undefined,
-    );
-    log(`Created revision branch ${branch}`);
-    const action = await vscode.window.showInformationMessage(
-      `Created and checked out branch "${branch}". Commit your changes, then upload your new files.`,
-      'Upload Files',
-    );
-    if (action === 'Upload Files') {
-      await vscode.commands.executeCommand('classforge.submitProject');
-    }
   });
 
   register('classforge.openDashboard', async () => {

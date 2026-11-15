@@ -189,21 +189,17 @@ class SubmissionSettingsTests(TestCase):
             'max_score': '100.00',
             'status': 'published',
             'guidelines': '',
-            'required_files': '',
             'expected_outcomes': '',
             'accepted_formats': '.zip\n.pdf',
             'required_directories': '',
             'documentation_requirements': '',
             'validation_rules': '',
-            'required_tests': '',
             'max_upload_mb': '25',
             'ai_grading_mode': 'instructor_approved',
             'manual_review_required': 'on',
             'late_policy': 'accept',
             'late_penalty_percent': '0',
             'allow_resubmission': 'on',
-            'revision_deadline_days': '7',
-            'default_exclusions': '',
             'accepts_zip': 'on',
             'accepts_pdf': 'on',
             'ai_auto_run': 'on',
@@ -218,6 +214,15 @@ class SubmissionSettingsTests(TestCase):
             Submission._meta.get_field('github_url')
         self.assertNotIn('accepts_github', AssignmentForm().fields)
         self.assertNotIn('github_url', SubmissionForm().fields)
+
+    def test_removed_requirement_fields_are_not_in_the_form(self):
+        fields = AssignmentForm().fields
+        for field in (
+            'required_files',
+            'required_tests',
+            'default_exclusions',
+        ):
+            self.assertNotIn(field, fields)
 
     def test_assignment_creation_only_offers_file_formats(self):
         instructor, _ = make_users()
@@ -258,6 +263,242 @@ class SubmissionSettingsTests(TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertNotContains(response, 'GitHub')
         self.assertContains(response, 'Text Content / Notes')
+
+
+class AssignmentCreationFormTests(TestCase):
+    def _post_data(self, **overrides):
+        data = {
+            'title': 'Quick assignment',
+            'category': 'code_project',
+            'due_date': (
+                timezone.now() + timezone.timedelta(days=7)
+            ).strftime('%Y-%m-%dT%H:%M'),
+            'max_score': '50',
+            'description': 'Submit a short project.',
+            'status': 'published',
+            'guidelines': '',
+            'expected_outcomes': '',
+            'accepted_formats': '',
+            'required_directories': '',
+            'documentation_requirements': '',
+            'validation_rules': '',
+            'max_upload_mb': '25',
+            'ai_grading_mode': 'instructor_approved',
+            'manual_review_required': 'on',
+            'late_policy': 'accept',
+            'late_penalty_percent': '0',
+            'allow_resubmission': 'on',
+            'accepts_zip': 'on',
+            'ai_auto_run': 'on',
+        }
+        data.update(overrides)
+        return data
+
+    def test_create_form_uses_the_full_assignment_form(self):
+        fields = AssignmentForm().fields
+        for field in (
+            'status',
+            'expected_outcomes',
+            'accepted_formats',
+            'required_directories',
+            'documentation_requirements',
+            'validation_rules',
+            'guidelines',
+            'ai_grading_mode',
+            'late_policy',
+            'late_penalty_percent',
+            'manual_review_required',
+            'allow_resubmission',
+            'ai_auto_run',
+        ):
+            self.assertIn(field, fields)
+        for field in (
+            'required_files',
+            'required_tests',
+            'default_exclusions',
+        ):
+            self.assertNotIn(field, fields)
+
+    def test_create_page_shows_advanced_and_feedback_settings(self):
+        instructor, _ = make_users()
+        course = make_course(instructor)
+        self.client.force_login(instructor)
+
+        response = self.client.get(
+            reverse('courses:assignment_create', args=[course.pk])
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, 'What students can submit')
+        self.assertContains(response, 'Advanced project settings')
+        self.assertContains(response, 'Feedback settings')
+        self.assertContains(response, 'Expected outcomes / AI guidelines')
+        self.assertContains(response, 'Automatic checks')
+        self.assertNotContains(response, 'Test commands to run')
+        self.assertNotContains(response, 'Required files')
+        self.assertNotContains(response, 'Files to leave out by default')
+        self.assertNotContains(response, 'Grading checklist')
+
+    def test_create_saves_advanced_and_feedback_settings(self):
+        instructor, _ = make_users()
+        course = make_course(instructor)
+        self.client.force_login(instructor)
+
+        response = self.client.post(
+            reverse('courses:assignment_create', args=[course.pk]),
+            self._post_data(
+                status='draft',
+                expected_outcomes='Include README.md and run the test suite.',
+                guidelines='Use plain language in the README.',
+                accepted_formats='.zip\n.pdf',
+                max_upload_mb='10',
+                ai_grading_mode='advisory',
+                late_policy='penalty',
+                late_penalty_percent='5',
+                accepts_pdf='on',
+            ),
+        )
+
+        assignment = Assignment.objects.get(title='Quick assignment')
+        self.assertRedirects(
+            response,
+            reverse('courses:assignment_detail', args=[assignment.pk]),
+        )
+        self.assertEqual(assignment.status, Assignment.STATUS_DRAFT)
+        self.assertEqual(assignment.max_upload_mb, 10)
+        self.assertEqual(
+            assignment.expected_outcomes,
+            'Include README.md and run the test suite.',
+        )
+        self.assertEqual(assignment.guidelines, 'Use plain language in the README.')
+        self.assertEqual(assignment.accepted_formats, '.zip\n.pdf')
+        self.assertEqual(assignment.accepted_types, ['.zip', '.pdf'])
+        self.assertEqual(assignment.ai_grading_mode, Assignment.AI_MODE_ADVISORY)
+        self.assertEqual(assignment.late_policy, Assignment.LATE_PENALTY)
+        self.assertEqual(assignment.late_penalty_percent, Decimal('5.00'))
+        self.assertTrue(assignment.accepts_zip)
+        self.assertTrue(assignment.accepts_pdf)
+
+    def test_edit_page_keeps_optional_settings_collapsed(self):
+        instructor, _ = make_users()
+        course = make_course(instructor)
+        assignment = make_assignment(course)
+        self.client.force_login(instructor)
+
+        response = self.client.get(
+            reverse('courses:assignment_update', args=[assignment.pk])
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, 'Advanced project settings')
+        self.assertContains(response, 'Feedback settings')
+
+    def test_assignment_detail_has_no_checklist_entry_point(self):
+        instructor, _ = make_users()
+        course = make_course(instructor)
+        assignment = make_assignment(course)
+        self.client.force_login(instructor)
+
+        response = self.client.get(
+            reverse('courses:assignment_detail', args=[assignment.pk])
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertNotContains(
+            response,
+            reverse('courses:assignment_rubric', args=[assignment.pk]),
+        )
+
+    def test_assignment_detail_shows_delete_without_submissions(self):
+        instructor, _ = make_users()
+        course = make_course(instructor)
+        assignment = make_assignment(course)
+        self.client.force_login(instructor)
+
+        response = self.client.get(
+            reverse('courses:assignment_detail', args=[assignment.pk])
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(
+            response,
+            reverse('courses:assignment_delete', args=[assignment.pk]),
+        )
+        self.assertContains(response, 'Delete assignment')
+
+    def test_instructor_can_delete_an_assignment(self):
+        instructor, _ = make_users()
+        course = make_course(instructor)
+        assignment = make_assignment(course)
+        self.client.force_login(instructor)
+
+        response = self.client.post(
+            reverse('courses:assignment_delete', args=[assignment.pk])
+        )
+
+        self.assertRedirects(
+            response,
+            reverse('courses:course_detail', args=[course.pk]),
+        )
+        self.assertFalse(Assignment.objects.filter(pk=assignment.pk).exists())
+
+    def test_course_page_has_no_assistant_management_option(self):
+        instructor, _ = make_users()
+        course = make_course(instructor)
+        self.client.force_login(instructor)
+
+        response = self.client.get(
+            reverse('courses:course_detail', args=[course.pk])
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertNotContains(
+            response,
+            reverse('courses:manage_assistants', args=[course.pk]),
+        )
+
+    def test_description_is_the_official_ai_instructions(self):
+        instructor, _ = make_users()
+        assignment = make_assignment(
+            make_course(instructor),
+            description='Build a CRUD app with authentication, tests, and a README.',
+            guidelines='',
+        )
+
+        self.assertEqual(
+            assignment.ai_instructions,
+            'Build a CRUD app with authentication, tests, and a README.',
+        )
+        self.assertTrue(assignment.has_ai_guidelines)
+
+    def test_expected_outcomes_are_included_in_ai_instructions(self):
+        instructor, _ = make_users()
+        assignment = make_assignment(
+            make_course(instructor),
+            description='Build a CRUD app.',
+            expected_outcomes='Include README.md and run the test suite.',
+            guidelines='',
+        )
+
+        self.assertIn('Build a CRUD app.', assignment.ai_instructions)
+        self.assertIn(
+            'Expected outcomes:\nInclude README.md and run the test suite.',
+            assignment.ai_instructions,
+        )
+
+    def test_legacy_guidelines_are_kept_as_additional_ai_context(self):
+        instructor, _ = make_users()
+        assignment = make_assignment(
+            make_course(instructor),
+            description='Build a CRUD app.',
+            guidelines='Use PostgreSQL and include an ERD.',
+        )
+
+        self.assertTrue(assignment.ai_instructions.startswith('Build a CRUD app.'))
+        self.assertIn(
+            'Additional instructor guidance:\nUse PostgreSQL and include an ERD.',
+            assignment.ai_instructions,
+        )
 
 
 class CoursePermissionTests(TestCase):

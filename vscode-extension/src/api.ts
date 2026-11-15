@@ -76,7 +76,6 @@ export interface ProjectSummary {
   title: string;
   status: string;
   latest_snapshot: SnapshotSummary | null;
-  open_revisions: number;
   open_pull_requests: number;
 }
 
@@ -110,20 +109,6 @@ export interface CriterionAssessmentSummary {
   comment: string;
   evidence: string;
   confidence: string | null;
-}
-
-export interface RevisionRequestSummary {
-  id: number;
-  project_id: number;
-  snapshot_id: number | null;
-  title: string;
-  description: string;
-  branch_name: string;
-  due_date: string | null;
-  status: string;
-  requested_by: number | null;
-  created_at: string;
-  resolved_at: string | null;
 }
 
 export interface FeedbackPayload {
@@ -261,7 +246,6 @@ export class ClassForgeClient {
   async projectDetail(projectId: number): Promise<{
     project: ProjectSummary;
     snapshots: SnapshotSummary[];
-    revision_requests: RevisionRequestSummary[];
   }> {
     return this.request('GET', `/projects/${projectId}/`);
   }
@@ -322,14 +306,6 @@ export class ClassForgeClient {
       { body: {} },
     );
     return data.assessment;
-  }
-
-  async listRevisions(projectId: number): Promise<RevisionRequestSummary[]> {
-    const data = await this.request<{ revision_requests: RevisionRequestSummary[] }>(
-      'GET',
-      `/projects/${projectId}/revisions/`,
-    );
-    return data.revision_requests;
   }
 
   async listNotifications(): Promise<{ unread: number; notifications: Json[] }> {

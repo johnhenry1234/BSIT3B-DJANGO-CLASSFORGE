@@ -109,7 +109,6 @@ CREATE TABLE `assignments` (
   `published_at` DATETIME(6) NULL,
   `required_directories` TEXT NOT NULL,
   `required_tests` TEXT NOT NULL,
-  `revision_deadline_days` INT UNSIGNED NOT NULL,
   `status` VARCHAR(20) NOT NULL,
   `validation_rules` TEXT NOT NULL,
   PRIMARY KEY (`id`),
@@ -476,10 +475,8 @@ CREATE TABLE `project_pull_requests` (
   `project_id` BIGINT NOT NULL,
   `reviewed_by_id` INT NULL,
   `source_snapshot_id` BIGINT NULL,
-  `revision_request_id` BIGINT NULL,
   PRIMARY KEY (`id`),
   KEY `idx_pr_project_status` (`project_id`, `status`),
-  KEY `project_pull_requests_revision_request_id_ec5c5eac` (`revision_request_id`),
   KEY `project_pull_requests_source_snapshot_id_16e0d46f` (`source_snapshot_id`),
   KEY `project_pull_requests_reviewed_by_id_3bb6ce18` (`reviewed_by_id`),
   KEY `project_pull_requests_project_id_ea8e657d` (`project_id`),
@@ -501,29 +498,6 @@ CREATE TABLE `project_repositories` (
   `project_id` BIGINT NOT NULL,
   PRIMARY KEY (`id`),
   UNIQUE KEY `uq_project_repositories_project_id` (`project_id`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
-
-DROP TABLE IF EXISTS `project_revision_requests`;
-CREATE TABLE `project_revision_requests` (
-  `id` BIGINT NOT NULL AUTO_INCREMENT,
-  `title` VARCHAR(255) NOT NULL,
-  `description` TEXT NOT NULL,
-  `branch_name` VARCHAR(128) NOT NULL,
-  `due_date` DATETIME(6) NULL,
-  `status` VARCHAR(16) NOT NULL,
-  `resolved_at` DATETIME(6) NULL,
-  `created_at` DATETIME(6) NOT NULL,
-  `updated_at` DATETIME(6) NOT NULL,
-  `project_id` BIGINT NOT NULL,
-  `requested_by_id` INT NULL,
-  `resolved_by_id` INT NULL,
-  `snapshot_id` BIGINT NULL,
-  PRIMARY KEY (`id`),
-  KEY `idx_revision_project_status` (`project_id`, `status`),
-  KEY `project_revision_requests_snapshot_id_0d32a1fb` (`snapshot_id`),
-  KEY `project_revision_requests_resolved_by_id_563ba021` (`resolved_by_id`),
-  KEY `project_revision_requests_requested_by_id_f82749a0` (`requested_by_id`),
-  KEY `project_revision_requests_project_id_023fb418` (`project_id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 DROP TABLE IF EXISTS `project_snapshots`;
@@ -848,10 +822,10 @@ INSERT INTO `assignment_seen` (`id`, `seen_at`, `assignment_id`, `student_id`) V
 (3, '2026-10-29 23:48:55.878533', 2, 23);
 
 -- assignments: 1 rows
-INSERT INTO `assignments` (`id`, `title`, `description`, `due_date`, `max_score`, `created_at`, `updated_at`, `course_id`, `category`, `accepts_pdf`, `accepts_zip`, `ai_auto_run`, `guidelines`, `required_files`, `accepted_formats`, `ai_grading_mode`, `allow_resubmission`, `default_exclusions`, `documentation_requirements`, `expected_outcomes`, `late_penalty_percent`, `late_policy`, `manual_review_required`, `max_upload_mb`, `published_at`, `required_directories`, `required_tests`, `revision_deadline_days`, `status`, `validation_rules`) VALUES
-(2, 'Hello World Test Project', '"Please create a folder containing a helloworld.php file with basic HTML inside, and explain how to run it on a local web server.', '2026-10-30 15:55:00', 100, '2026-10-29 07:59:56.213781', '2026-10-29 23:47:49.655638', 1, 'code_project', 1, 1, 1, 'create a folder containing a helloworld.php file with basic HTML inside, and explain how to run it on a local web server.', '', '', 'automatic', 1, '', '', '', 0, 'accept', 1, 25, '2026-10-29 07:59:56.490934', '', '', 7, 'published', '');
+INSERT INTO `assignments` (`id`, `title`, `description`, `due_date`, `max_score`, `created_at`, `updated_at`, `course_id`, `category`, `accepts_pdf`, `accepts_zip`, `ai_auto_run`, `guidelines`, `required_files`, `accepted_formats`, `ai_grading_mode`, `allow_resubmission`, `default_exclusions`, `documentation_requirements`, `expected_outcomes`, `late_penalty_percent`, `late_policy`, `manual_review_required`, `max_upload_mb`, `published_at`, `required_directories`, `required_tests`, `status`, `validation_rules`) VALUES
+(2, 'Hello World Test Project', '"Please create a folder containing a helloworld.php file with basic HTML inside, and explain how to run it on a local web server.', '2026-10-30 15:55:00', 100, '2026-10-29 07:59:56.213781', '2026-10-29 23:47:49.655638', 1, 'code_project', 1, 1, 1, 'create a folder containing a helloworld.php file with basic HTML inside, and explain how to run it on a local web server.', '', '', 'automatic', 1, '', '', '', 0, 'accept', 1, 25, '2026-10-29 07:59:56.490934', '', '', 'published', '');
 
--- auth_permission: 164 rows
+-- auth_permission: 160 rows
 INSERT INTO `auth_permission` (`id`, `content_type_id`, `codename`, `name`) VALUES
 (1, 1, 'add_logentry', 'Can add log entry'),
 (2, 1, 'change_logentry', 'Can change log entry'),
@@ -1013,11 +987,7 @@ INSERT INTO `auth_permission` (`id`, `content_type_id`, `codename`, `name`) VALU
 (157, 40, 'add_repository', 'Can add repository'),
 (158, 40, 'change_repository', 'Can change repository'),
 (159, 40, 'delete_repository', 'Can delete repository'),
-(160, 40, 'view_repository', 'Can view repository'),
-(161, 41, 'add_revisionrequest', 'Can add revision request'),
-(162, 41, 'change_revisionrequest', 'Can change revision request'),
-(163, 41, 'delete_revisionrequest', 'Can delete revision request'),
-(164, 41, 'view_revisionrequest', 'Can view revision request');
+(160, 40, 'view_repository', 'Can view repository');
 
 -- auth_user: 3 rows
 INSERT INTO `auth_user` (`id`, `password`, `last_login`, `is_superuser`, `username`, `last_name`, `email`, `is_staff`, `is_active`, `date_joined`, `first_name`) VALUES
@@ -1046,7 +1016,7 @@ INSERT INTO `classforge_notifications` (`id`, `kind`, `title`, `body`, `url`, `r
 INSERT INTO `courses` (`id`, `name`, `description`, `code`, `created_at`, `updated_at`, `instructor_id`) VALUES
 (1, 'INTERNET OF THINGS', '', 'ITE201', '2026-10-27 09:33:36.879809', '2026-10-27 09:33:36.879830', 22);
 
--- django_content_type: 41 rows
+-- django_content_type: 40 rows
 INSERT INTO `django_content_type` (`id`, `app_label`, `model`) VALUES
 (1, 'admin', 'logentry'),
 (2, 'auth', 'group'),
@@ -1087,10 +1057,9 @@ INSERT INTO `django_content_type` (`id`, `app_label`, `model`) VALUES
 (37, 'projects', 'projectsnapshot'),
 (38, 'projects', 'pullrequest'),
 (39, 'projects', 'pullrequestcomment'),
-(40, 'projects', 'repository'),
-(41, 'projects', 'revisionrequest');
+(40, 'projects', 'repository');
 
--- django_migrations: 45 rows
+-- django_migrations: 47 rows
 INSERT INTO `django_migrations` (`id`, `app`, `name`, `applied`) VALUES
 (1, 'contenttypes', '0001_initial', '2026-05-12 01:46:53.555369'),
 (2, 'auth', '0001_initial', '2026-05-12 01:46:53.574735'),
@@ -1136,7 +1105,9 @@ INSERT INTO `django_migrations` (`id`, `app`, `name`, `applied`) VALUES
 (43, 'courses', '0004_assignmentseen', '2026-10-27 09:18:18.521105'),
 (44, 'courses', '0005_assignment_accepted_formats_and_more', '2026-10-29 06:00:30.915837'),
 (45, 'projects', '0001_initial', '2026-10-29 06:00:31.958892'),
-(46, 'courses', '0006_remove_assignment_accepts_github_and_more', '2026-10-29 07:49:24.134425');
+(46, 'courses', '0006_remove_assignment_accepts_github_and_more', '2026-10-29 07:49:24.134425'),
+(47, 'courses', '0007_remove_assignment_revision_deadline_days', '2026-11-15 12:30:00.000000'),
+(48, 'projects', '0002_remove_revisionrequest_idx_revision_project_status_and_more', '2026-11-15 12:30:00.000000');
 
 -- django_session: 70 rows
 INSERT INTO `django_session` (`session_key`, `session_data`, `expire_date`) VALUES
@@ -1257,10 +1228,10 @@ INSERT INTO `tblinfo` (`id`, `name`, `age`, `address`, `email`, `created_at`, `u
 (7, 'Cyrus Pagador', 21, 'adaera', 'sapanzacyr2us143@gmail.com', '2026-10-29 23:48:42.957628', '2026-10-29 23:48:42.957652', 23, '123124');
 
 -- AUTO_INCREMENT counters from sqlite_sequence
-ALTER TABLE `django_migrations` AUTO_INCREMENT = 47;
+ALTER TABLE `django_migrations` AUTO_INCREMENT = 49;
 ALTER TABLE `django_admin_log` AUTO_INCREMENT = 1;
-ALTER TABLE `django_content_type` AUTO_INCREMENT = 42;
-ALTER TABLE `auth_permission` AUTO_INCREMENT = 165;
+ALTER TABLE `django_content_type` AUTO_INCREMENT = 41;
+ALTER TABLE `auth_permission` AUTO_INCREMENT = 161;
 ALTER TABLE `auth_group` AUTO_INCREMENT = 1;
 ALTER TABLE `auth_user` AUTO_INCREMENT = 24;
 ALTER TABLE `tblattendance` AUTO_INCREMENT = 1;
@@ -1336,17 +1307,12 @@ ALTER TABLE `project_criterion_assessments` ADD CONSTRAINT `fk_project_criterion
 ALTER TABLE `project_criterion_assessments` ADD CONSTRAINT `fk_project_criterion_assessments_assessment_id` FOREIGN KEY (`assessment_id`) REFERENCES `project_assessments` (`id`);
 ALTER TABLE `project_pull_request_comments` ADD CONSTRAINT `fk_project_pull_request_comments_pull_request_id` FOREIGN KEY (`pull_request_id`) REFERENCES `project_pull_requests` (`id`);
 ALTER TABLE `project_pull_request_comments` ADD CONSTRAINT `fk_project_pull_request_comments_author_id` FOREIGN KEY (`author_id`) REFERENCES `auth_user` (`id`);
-ALTER TABLE `project_pull_requests` ADD CONSTRAINT `fk_project_pull_requests_revision_request_id` FOREIGN KEY (`revision_request_id`) REFERENCES `project_revision_requests` (`id`);
 ALTER TABLE `project_pull_requests` ADD CONSTRAINT `fk_project_pull_requests_source_snapshot_id` FOREIGN KEY (`source_snapshot_id`) REFERENCES `project_snapshots` (`id`);
 ALTER TABLE `project_pull_requests` ADD CONSTRAINT `fk_project_pull_requests_reviewed_by_id` FOREIGN KEY (`reviewed_by_id`) REFERENCES `auth_user` (`id`);
 ALTER TABLE `project_pull_requests` ADD CONSTRAINT `fk_project_pull_requests_project_id` FOREIGN KEY (`project_id`) REFERENCES `project_workspaces` (`id`);
 ALTER TABLE `project_pull_requests` ADD CONSTRAINT `fk_project_pull_requests_merged_snapshot_id` FOREIGN KEY (`merged_snapshot_id`) REFERENCES `project_snapshots` (`id`);
 ALTER TABLE `project_pull_requests` ADD CONSTRAINT `fk_project_pull_requests_created_by_id` FOREIGN KEY (`created_by_id`) REFERENCES `auth_user` (`id`);
 ALTER TABLE `project_repositories` ADD CONSTRAINT `fk_project_repositories_project_id` FOREIGN KEY (`project_id`) REFERENCES `project_workspaces` (`id`);
-ALTER TABLE `project_revision_requests` ADD CONSTRAINT `fk_project_revision_requests_snapshot_id` FOREIGN KEY (`snapshot_id`) REFERENCES `project_snapshots` (`id`);
-ALTER TABLE `project_revision_requests` ADD CONSTRAINT `fk_project_revision_requests_resolved_by_id` FOREIGN KEY (`resolved_by_id`) REFERENCES `auth_user` (`id`);
-ALTER TABLE `project_revision_requests` ADD CONSTRAINT `fk_project_revision_requests_requested_by_id` FOREIGN KEY (`requested_by_id`) REFERENCES `auth_user` (`id`);
-ALTER TABLE `project_revision_requests` ADD CONSTRAINT `fk_project_revision_requests_project_id` FOREIGN KEY (`project_id`) REFERENCES `project_workspaces` (`id`);
 ALTER TABLE `project_snapshots` ADD CONSTRAINT `fk_project_snapshots_parent_id` FOREIGN KEY (`parent_id`) REFERENCES `project_snapshots` (`id`);
 ALTER TABLE `project_snapshots` ADD CONSTRAINT `fk_project_snapshots_submission_id` FOREIGN KEY (`submission_id`) REFERENCES `submissions` (`id`);
 ALTER TABLE `project_snapshots` ADD CONSTRAINT `fk_project_snapshots_project_id` FOREIGN KEY (`project_id`) REFERENCES `project_workspaces` (`id`);

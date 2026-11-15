@@ -23,11 +23,6 @@
               <i class="fas fa-code-pull-request me-2"></i> Send changes
             </a>
             {% endif %}
-            {% if can_grade %}
-            <a href="{% url 'projects:revision_create' project.id %}" class="btn btn-primary">
-              <i class="fas fa-rotate-left me-2"></i> Request changes
-            </a>
-            {% endif %}
           </div>
         </div>
       </div>
@@ -98,47 +93,6 @@
             </tr>
             {% empty %}
             <tr><td colspan="8" class="text-muted">No saved versions yet. Upload project files from the VS Code extension or submit a .zip on the assignment page.</td></tr>
-            {% endfor %}
-            </tbody>
-          </table>
-        </div>
-      </div>
-
-      <div class="card mt-3">
-        <div class="card-header d-flex align-items-center">
-          <div class="card-title">Change requests</div>
-          <div class="ms-auto text-muted small">{{ revisions|length }} total</div>
-        </div>
-        <div class="table-responsive">
-          <table class="table table-vcenter card-table">
-            <thead><tr><th>Title</th><th>Branch</th><th>Status</th><th>Requested by</th><th>Created</th><th class="w-1"></th></tr></thead>
-            <tbody>
-            {% for revision in revisions %}
-            <tr>
-              <td class="fw-semibold">
-                {{ revision.title }}
-                {% if revision.description %}<div class="small text-muted">{{ revision.description|truncatechars:100 }}</div>{% endif %}
-              </td>
-              <td><code>{{ revision.branch_name|default:"—" }}</code></td>
-              <td>
-                {% if revision.status == 'open' %}<span class="badge bg-warning-lt text-warning">Open</span>
-                {% elif revision.status == 'addressed' %}<span class="badge bg-success-lt text-success">Addressed</span>
-                {% else %}<span class="badge bg-secondary-lt text-secondary">Closed</span>{% endif %}
-              </td>
-              <td class="text-muted">{% if revision.requested_by %}{{ revision.requested_by.get_full_name|default:revision.requested_by.username }}{% else %}—{% endif %}</td>
-              <td class="text-muted">{{ revision.created_at|date:"M j, Y" }}</td>
-              <td>
-                {% if can_grade and revision.is_open %}
-                <form method="POST" action="{% url 'projects:revision_update' revision.id %}" class="d-flex gap-1">
-                  {% csrf_token %}
-                  <input type="hidden" name="status" value="addressed">
-                  <button class="btn btn-sm btn-outline-success">Mark done</button>
-                </form>
-                {% endif %}
-              </td>
-            </tr>
-            {% empty %}
-            <tr><td colspan="6" class="text-muted">No change requests.</td></tr>
             {% endfor %}
             </tbody>
           </table>

@@ -347,7 +347,6 @@ def assignment_detail(request, pk):
         'course': course,
         'can_manage': can_manage,
         'can_grade': can_grade_this,
-        'rubric': getattr(assignment, 'rubric', None),
         'now': timezone.now(),
     }
 

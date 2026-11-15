@@ -48,7 +48,6 @@ from .models import (
     ProjectSnapshot,
     PullRequest,
     Repository,
-    RevisionRequest,
 )
 
 logger = logging.getLogger(__name__)

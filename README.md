@@ -66,7 +66,7 @@ ClassForge is a web-based Assignment and Digital Portfolio Management System wit
 - Task Queue: Celery with Redis (for async AI evaluation)
 - AI: LLM pipeline for AI-assisted evaluation
 - Frontend: Tabler UI + Bootstrap 5
-- Project workflow: `apps.projects` (saved versions, local Git mirror, change requests, change reviews, feedback, notifications, server-issued API access keys)
+- Project workflow: `apps.projects` (saved versions, local Git mirror, change reviews, feedback, notifications, server-issued API access keys)
 - VS Code extension: TypeScript (`vscode-extension/`), Node built-in tests, no runtime npm dependencies
 - Testing: pytest + pytest-django for Django; `node --test` for the extension
 - Raw schema: [`SQL/classforge_db.sql`](SQL/classforge_db.sql) (mirrors the original Django models)
@@ -106,14 +106,13 @@ original assignment submission system:
   draft when configured. AI output is never a final grade.
 - **Teacher review** — drafts are reviewed, overridden, rejected, or applied as
   a grade that is **not shared**; sharing remains an explicit teacher action.
-- **Change requests and change reviews** with comments, merge/close actions,
+- **Change reviews** with comments, merge/close actions,
   notifications, activity history, and feedback retries.
 - **Safe DB/ERD inspection** — SQLite files are opened read-only with an
   authorizer; SQL/ERD/documentation artifacts are inspected statically. Student
   code and SQL are never executed in the Django process.
 - **VS Code extension** — access-key sign-in via SecretStorage, course/assignment
-  selection, file-preview, upload progress/errors, status/feedback, and local
-  branch creation for change requests.
+  selection, file-preview, upload progress/errors, and status/feedback.
 
 Additional documentation:
 
@@ -134,7 +133,7 @@ ClassForge does **not** expose a Git remote to VS Code. There is no `git push`
 to ClassForge and no `git pull`/clone from it. In this system:
 
 - **Push** = upload the current workspace as a saved version.
-- **Pull** = fetch the latest feedback, shared grade, and change requests.
+- **Pull** = fetch the latest feedback and shared grade.
 
 Use normal Git separately if you also want GitHub/GitLab push/pull.
 
@@ -220,23 +219,11 @@ Use normal Git separately if you also want GitHub/GitLab push/pull.
    the teacher has released one. The ClassForge website is available with
    `ClassForge: Open ClassForge Website`.
 
-10. **Handle change requests:**
-
-    ```text
-    ClassForge: Start Requested Changes
-    ```
-
-    Select an open change request; the extension creates and checks out a
-    local branch (for example `revision/42-fix-erd`). Commit your changes
-    locally, then run **Upload Project Files** again to upload a new saved
-    version. Send the changes for review in the web app.
-
 | Action | VS Code command | What happens |
 | --- | --- | --- |
 | Push project | `ClassForge: Upload Project Files` | Uploads files and creates a new saved version. |
 | Pull latest status | `ClassForge: Check Feedback` | Fetches the latest saved version and feedback status. |
 | Pull feedback | `ClassForge: View Feedback` | Shows the summary, grading checklist, and shared grade. |
-| Pull requested changes | `ClassForge: Start Requested Changes` | Lists open change requests and creates a local branch. |
 | Open ClassForge | `ClassForge: Open ClassForge Website` | Opens `/projects/` in the browser. |
 
 **Not supported:** `git push` to ClassForge, `git pull`/clone saved versions back

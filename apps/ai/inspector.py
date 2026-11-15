@@ -719,8 +719,8 @@ ASSIGNMENT
 Title: {assignment.title}
 Category: {assignment.get_category_display()}
 Maximum score: {assignment.max_score}
-Instructor guidelines:
-{assignment.guidelines or 'None provided.'}
+Assignment requirements and guidelines:
+{assignment.ai_instructions or 'None provided.'}
 
 Mandatory files:
 {assignment.required_files or 'None provided.'}

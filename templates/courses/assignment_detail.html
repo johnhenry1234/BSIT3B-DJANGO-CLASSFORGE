@@ -18,7 +18,6 @@
             <a href="{% url 'courses:course_detail' course.id %}" class="btn btn-ghost-secondary">Back</a>
             {% if can_manage %}
             <a href="{% url 'courses:assignment_update' assignment.id %}" class="btn btn-outline-primary">Edit</a>
-            <a href="{% url 'courses:assignment_rubric' assignment.id %}" class="btn btn-outline-secondary">Checklist</a>
             <a href="{% url 'projects:project_list' %}?assignment={{ assignment.id }}" class="btn btn-outline-secondary">
               Projects ({{ project_count }})
             </a>
@@ -118,16 +117,14 @@
       </table>
     </div>
   </div>
-  {% if by_student %}
   <div class="card mt-3">
     <div class="card-body">
       <form method="POST" action="{% url 'courses:assignment_delete' assignment.id %}" onsubmit="return confirm('Delete this assignment and all its submissions and grades?');">
         {% csrf_token %}
-        <button type="submit" class="btn btn-outline-danger">Delete</button>
+        <button type="submit" class="btn btn-outline-danger">Delete assignment</button>
       </form>
     </div>
   </div>
-  {% endif %}
   {% else %}
   {% if my_project %}
   <div class="card mb-3">
@@ -146,7 +143,7 @@
     <div class="card-body">
       <div class="fw-semibold mb-1">Project</div>
       <p class="text-muted small mb-2">
-        Create a project to track saved versions, request changes and receive AI feedback.
+        Create a project to track saved versions, send changes for review and receive AI feedback.
         Upload code from the VS Code extension or submit a .zip below.
       </p>
       <form method="POST" action="{% url 'projects:project_create' assignment.id %}" class="row g-2 align-items-end">

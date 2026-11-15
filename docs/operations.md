@@ -5,7 +5,7 @@
 - Python 3.12+ (the repository was developed/tested with Python 3.15 and
   Django 6.1.2).
 - Node.js 18+ and npm (extension build/test only; Node 24 was used).
-- Git (optional, for the server-owned snapshot mirror and revision branches).
+- Git (optional, for the server-owned snapshot mirror).
 - MySQL/MariaDB (optional; SQLite is the default).
 - A virtual environment is recommended.
 
@@ -154,9 +154,7 @@ limits, no network by default, and read-only input mounts.
 ### Server-owned Git
 
 Leave `CLASSFORGE_GIT_ENABLED=1` to mirror snapshots into local Git workspaces.
-Git failures are logged and snapshots are still stored. The extension's
-revision-branch command operates on the student's local repository; it does not
-push.
+Git failures are logged and snapshots are still stored.
 
 ## 7. Security notes
 
@@ -169,7 +167,7 @@ push.
   unpublished until an instructor reviews/publishes.
 - API tokens are hashed (SHA-256), scoped, expiring, revocable, and rate limited.
 - Every sensitive action (token issue/revoke, snapshot upload, assessment
-  request/completion/failure, revision/PR lifecycle) writes an activity log
+  request/completion/failure, PR lifecycle) writes an activity log
   entry using the existing `apps.core.audit` module.
 - Secrets belong in environment variables/secret stores, never in git. `.env`
   is ignored; `.env.example` contains placeholders only.

@@ -10,7 +10,6 @@ from .models import (
     PullRequest,
     PullRequestComment,
     Repository,
-    RevisionRequest,
 )
 
 
@@ -34,13 +33,6 @@ class ProjectSnapshotAdmin(admin.ModelAdmin):
     list_filter = ('source',)
     search_fields = ('project__title', 'checksum', 'commit_sha')
     readonly_fields = ('checksum', 'manifest', 'validation')
-
-
-@admin.register(RevisionRequest)
-class RevisionRequestAdmin(admin.ModelAdmin):
-    list_display = ('title', 'project', 'status', 'requested_by', 'created_at')
-    list_filter = ('status',)
-    search_fields = ('title', 'project__student__username')
 
 
 @admin.register(PullRequest)

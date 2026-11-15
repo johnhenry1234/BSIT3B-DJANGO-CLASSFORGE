@@ -26,11 +26,11 @@ separate TypeScript package under `vscode-extension/`.
 | Module | Responsibility |
 | --- | --- |
 | `apps.courses` | Courses, enrollments, assignments, append-only submissions, rubric criteria, published rubric versions, grades, feedback. |
-| `apps.projects` | Student project workspaces, immutable snapshots, server-owned Git mirrors, revision requests, pull requests, assessment drafts, criterion scores, notifications, API tokens. |
+| `apps.projects` | Student project workspaces, immutable snapshots, server-owned Git mirrors, pull requests, assessment drafts, criterion scores, notifications, API tokens. |
 | `apps.ai` | Legacy AI evaluation inspector used by the original submission flow. |
 | `apps.projects.api` | Bearer-token JSON API v1 consumed by the extension. |
-| `apps.projects.views` | Instructor/student web UI for projects, assessment review, revisions, pull requests, and notifications. |
-| `vscode-extension` | Workspace file collection, snapshot upload, status/feedback display, revision branch creation. |
+| `apps.projects.views` | Instructor/student web UI for projects, assessment review, pull requests, and notifications. |
+| `vscode-extension` | Workspace file collection, snapshot upload, and status/feedback display. |
 
 ### Why a separate app?
 
@@ -46,7 +46,6 @@ submission through a nullable one-to-one field on `ProjectSnapshot`
 | `Project` | One durable workspace per `(assignment, student)`. | Unique constraint on assignment + student. |
 | `Repository` | Metadata for the server-owned Git mirror. | One-to-one with project; stores branch/commit only. |
 | `ProjectSnapshot` | Immutable canonical archive + manifest + validation data. | Unique `(project, version)`; `save()` rejects updates; SHA-256 checksum. |
-| `RevisionRequest` | Instructor/TA request for changes, optionally tied to a snapshot and branch. | `open` → `addressed`/`closed`. |
 | `PullRequest` | Proposed snapshot/branch merge with comments and review state. | `open` → `merged`/`closed`; merge records reviewer and commit. |
 | `PullRequestComment` | Discussion on a pull request. | Author required. |
 | `Assessment` | One automated evaluation of a snapshot. | Status `queued/running/completed/failed`; `requires_review` defaults to true; engine recorded. |
@@ -57,7 +56,7 @@ submission through a nullable one-to-one field on `ProjectSnapshot`
 Assignment fields added in `courses` cover publication state, outcomes,
 accepted formats, required files/directories, documentation requirements,
 validation rules, required tests, upload limits, AI grading mode, manual review,
-late policy, resubmission, revision window, and default exclusions. Rubric
+late policy, resubmission, and default exclusions. Rubric
 criteria gained descriptions, expected evidence, validation rules, and position.
 `RubricVersion` stores an immutable published snapshot of rubric criteria.
 
@@ -161,7 +160,6 @@ shows that no commit was created.
 | --- | --- |
 | `src/api.ts` | Typed API client; injectable `fetch`; no credential storage. |
 | `src/files.ts` | Exclusion policy mirror, glob/ignore parsing, deterministic manifest, size limits. |
-| `src/git.ts` | Local branch slug/validation and revision branch creation (no push). |
 | `src/extension.ts` | Commands, SecretStorage token, status bar, progress, markdown views. |
 
 The extension mirrors server exclusions but treats them as a UX convenience;

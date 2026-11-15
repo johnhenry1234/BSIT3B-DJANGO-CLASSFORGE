@@ -51,11 +51,6 @@
             {% if form.source_snapshot.errors %}<div class="text-danger small">{{ form.source_snapshot.errors }}</div>{% endif %}
           </div>
           <div class="col-md-6">
-            <label class="form-label">Related change request</label>
-            {{ form.revision_request }}
-            {% if form.revision_request.errors %}<div class="text-danger small">{{ form.revision_request.errors }}</div>{% endif %}
-          </div>
-          <div class="col-md-6">
             <label class="form-label">Source branch</label>
             {{ form.source_branch }}
             {% if form.source_branch.errors %}<div class="text-danger small">{{ form.source_branch.errors }}</div>{% endif %}

@@ -243,7 +243,6 @@ class Assignment(models.Model):
         validators=[MinValueValidator(0), MaxValueValidator(100)],
     )
     allow_resubmission = models.BooleanField(default=True)
-    revision_deadline_days = models.PositiveIntegerField(default=7)
     default_exclusions = models.TextField(
         blank=True,
         default='',
@@ -261,8 +260,29 @@ class Assignment(models.Model):
         return f'{self.title} ({self.course.code})'
 
     @property
+    def ai_instructions(self):
+        """Official requirements for AI evaluation.
+
+        The student-facing description is the source of truth. Expected
+        outcomes add the project details that used to live in separate fields,
+        such as required files, test commands, and exclusions. The legacy
+        ``guidelines`` field is kept as optional additional guidance.
+        """
+        parts = []
+        description = (self.description or '').strip()
+        expected = (self.expected_outcomes or '').strip()
+        additional = (self.guidelines or '').strip()
+        if description:
+            parts.append(description)
+        if expected:
+            parts.append(f'Expected outcomes:\n{expected}')
+        if additional:
+            parts.append(f'Additional instructor guidance:\n{additional}')
+        return '\n\n'.join(parts)
+
+    @property
     def has_ai_guidelines(self):
-        return bool((self.guidelines or '').strip() or self.required_files_list)
+        return bool(self.ai_instructions or self.required_files_list)
 
     @property
     def required_files_list(self):

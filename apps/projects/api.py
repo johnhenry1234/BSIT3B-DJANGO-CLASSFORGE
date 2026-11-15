@@ -42,7 +42,6 @@ from .models import (
     ProjectSnapshot,
     PullRequest,
     PullRequestComment,
-    RevisionRequest,
 )
 
 logger = logging.getLogger(__name__)
@@ -201,9 +200,6 @@ def _project_payload(project, user=None):
             else None
         ),
         'latest_snapshot': _snapshot_summary(latest) if latest else None,
-        'open_revisions': project.revision_requests.filter(
-            status=RevisionRequest.STATUS_OPEN
-        ).count(),
         'open_pull_requests': project.pull_requests.filter(
             status=PullRequest.STATUS_OPEN
         ).count(),
@@ -637,10 +633,6 @@ def project_detail(request, pk):
             'ok': True,
             'project': _project_payload(project, request.user),
             'snapshots': [_snapshot_summary(item) for item in snapshots],
-            'revision_requests': [
-                _revision_payload(item)
-                for item in project.revision_requests.select_related('requested_by')[:50]
-            ],
             'pull_requests': [
                 _pull_request_payload(item)
                 for item in project.pull_requests.select_related('created_by')[:50]
@@ -912,132 +904,8 @@ def snapshot_assess(request, pk):
 
 
 # ---------------------------------------------------------------------------
-# Revision requests and pull requests
+# Pull requests
 # ---------------------------------------------------------------------------
-
-def _revision_payload(revision):
-    return {
-        'id': revision.id,
-        'project_id': revision.project_id,
-        'snapshot_id': revision.snapshot_id,
-        'title': revision.title,
-        'description': revision.description,
-        'branch_name': revision.branch_name,
-        'due_date': _iso(revision.due_date),
-        'status': revision.status,
-        'requested_by': revision.requested_by_id,
-        'created_at': _iso(revision.created_at),
-        'resolved_at': _iso(revision.resolved_at),
-    }
-
-
-@api_auth(('read',))
-@require_http_methods(['GET'])
-def revision_list(request):
-    queryset = RevisionRequest.objects.select_related('project', 'requested_by')
-    user = request.user
-    if not (user.is_superuser or is_instructor(user) or is_teaching_assistant(user)):
-        queryset = queryset.filter(project__student=user)
-    else:
-        courses = Course.objects.filter(models_q_instructor_or_assistant(user)).distinct()
-        queryset = queryset.filter(project__assignment__course__in=courses)
-    return _json(
-        {'ok': True, 'revision_requests': [_revision_payload(item) for item in queryset[:100]]}
-    )
-
-
-@api_auth(('read',))
-@require_http_methods(['GET'])
-def revision_list_by_project(request, project_id):
-    project = _project_for_user(request.user, project_id)
-    rows = project.revision_requests.select_related('requested_by')[:100]
-    return _json(
-        {
-            'ok': True,
-            'project_id': project.id,
-            'revision_requests': [_revision_payload(item) for item in rows],
-        }
-    )
-
-
-@api_auth(('write',))
-@require_http_methods(['POST'])
-def revision_create(request, project_id):
-    project = _project_for_user(request.user, project_id)
-    if not can_grade_course(request.user, project.assignment.course):
-        return _error('Only the teacher or a TA can request changes.', 403)
-    try:
-        data = _body(request)
-    except ValidationError as exc:
-        return _error(exc.messages[0])
-    title = str(data.get('title') or '').strip()
-    if not title:
-        return _error('A change request title is required.')
-    revision = RevisionRequest.objects.create(
-        project=project,
-        snapshot_id=data.get('snapshot_id') or None,
-        title=title[:255],
-        description=str(data.get('description') or '')[:10_000],
-        branch_name=str(data.get('branch_name') or '')[:128],
-        requested_by=request.user,
-    )
-    services.notify(
-        project.student,
-        kind=Notification.KIND_REVISION,
-        title=f'Changes requested: {revision.title}',
-        body=revision.description[:1000],
-        url=f'/projects/{project.pk}/',
-        project=project,
-        snapshot=revision.snapshot,
-    )
-    log_activity(
-        request,
-        action='project.revision.requested',
-        entity=revision,
-        description=f'Changes requested for {project}',
-        metadata={
-            'course_id': project.assignment.course_id,
-            'project_id': project.pk,
-        },
-    )
-    return _json({'ok': True, 'revision_request': _revision_payload(revision)}, status=201)
-
-
-@api_auth(('write',))
-@require_http_methods(['POST'])
-def revision_update(request, pk):
-    revision = get_object_or_404(
-        RevisionRequest.objects.select_related(
-            'project__assignment__course', 'project__student'
-        ),
-        pk=pk,
-    )
-    project = revision.project
-    if not can_grade_course(request.user, project.assignment.course):
-        return _error('Only the teacher or a TA can update change requests.', 403)
-    try:
-        data = _body(request)
-    except ValidationError as exc:
-        return _error(exc.messages[0])
-    status = str(data.get('status') or '').strip()
-    if status not in dict(RevisionRequest.STATUS_CHOICES):
-        return _error('Invalid change request status.')
-    revision.status = status
-    if status in (RevisionRequest.STATUS_ADDRESSED, RevisionRequest.STATUS_CLOSED):
-        revision.resolved_by = request.user
-        revision.resolved_at = timezone.now()
-    revision.save()
-    if status == RevisionRequest.STATUS_ADDRESSED:
-        services.notify(
-            project.student,
-            kind=Notification.KIND_REVISION,
-            title=f'Changes addressed: {revision.title}',
-            body='Your teacher marked this change request as addressed.',
-            url=f'/projects/{project.pk}/',
-            project=project,
-        )
-    return _json({'ok': True, 'revision_request': _revision_payload(revision)})
-
 
 def _pull_request_payload(pull_request):
     return {
@@ -1047,7 +915,6 @@ def _pull_request_payload(pull_request):
         'description': pull_request.description,
         'source_snapshot_id': pull_request.source_snapshot_id,
         'merged_snapshot_id': pull_request.merged_snapshot_id,
-        'revision_request_id': pull_request.revision_request_id,
         'source_branch': pull_request.source_branch,
         'target_branch': pull_request.target_branch,
         'status': pull_request.status,
@@ -1121,7 +988,6 @@ def pull_request_create(request, project_id):
         title=title[:255],
         description=str(data.get('description') or '')[:10_000],
         source_snapshot=snapshot,
-        revision_request_id=data.get('revision_request_id') or None,
         source_branch=str(data.get('source_branch') or snapshot.branch or 'feature')[:128],
         target_branch=str(data.get('target_branch') or 'main')[:128],
         created_by=request.user,
@@ -1202,12 +1068,6 @@ def pull_request_action(request, pk):
             repository.save(
                 update_fields=['current_branch', 'last_commit_sha', 'updated_at']
             )
-        if pull_request.revision_request_id:
-            revision = pull_request.revision_request
-            revision.status = RevisionRequest.STATUS_ADDRESSED
-            revision.resolved_by = request.user
-            revision.resolved_at = timezone.now()
-            revision.save(update_fields=['status', 'resolved_by', 'resolved_at', 'updated_at'])
         services.notify(
             project.student,
             kind=Notification.KIND_PULL_REQUEST,

@@ -17,7 +17,5 @@ urlpatterns = [
     path('pull-requests/<int:pk>/', views.pull_request_detail, name='pull_request_detail'),
     path('create/<int:assignment_pk>/', views.project_create, name='project_create'),
     path('<int:pk>/', views.project_detail, name='project_detail'),
-    path('<int:project_pk>/revisions/new/', views.revision_create, name='revision_create'),
-    path('revisions/<int:pk>/update/', views.revision_update, name='revision_update'),
     path('<int:project_pk>/pull-requests/new/', views.pull_request_create, name='pull_request_create'),
 ]

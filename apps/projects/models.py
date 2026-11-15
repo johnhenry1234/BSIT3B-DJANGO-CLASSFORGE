@@ -1,4 +1,4 @@
-"""Project workspace, snapshot, revision and assessment models.
+"""Project workspace, snapshot and assessment models.
 
 The app deliberately keeps ``courses`` (assignment/submission/grade) as the
 source of truth for grading.  A :class:`Project` is the durable workspace for
@@ -73,10 +73,6 @@ class Project(models.Model):
     @property
     def snapshot_count(self):
         return self.snapshots.count()
-
-    @property
-    def open_revisions(self):
-        return self.revision_requests.filter(status=RevisionRequest.STATUS_OPEN)
 
     @property
     def is_archived(self):
@@ -220,66 +216,6 @@ class ProjectSnapshot(models.Model):
         return [item.get('path', '') for item in (self.manifest or []) if item.get('path')]
 
 
-class RevisionRequest(models.Model):
-    STATUS_OPEN = 'open'
-    STATUS_ADDRESSED = 'addressed'
-    STATUS_CLOSED = 'closed'
-    STATUS_CHOICES = [
-        (STATUS_OPEN, 'Open'),
-        (STATUS_ADDRESSED, 'Addressed'),
-        (STATUS_CLOSED, 'Closed'),
-    ]
-
-    project = models.ForeignKey(
-        Project, related_name='revision_requests', on_delete=models.CASCADE
-    )
-    snapshot = models.ForeignKey(
-        ProjectSnapshot,
-        related_name='revision_requests',
-        on_delete=models.SET_NULL,
-        null=True,
-        blank=True,
-    )
-    title = models.CharField(max_length=255)
-    description = models.TextField(blank=True, default='')
-    branch_name = models.CharField(max_length=128, blank=True, default='')
-    due_date = models.DateTimeField(null=True, blank=True)
-    status = models.CharField(
-        max_length=16, choices=STATUS_CHOICES, default=STATUS_OPEN
-    )
-    requested_by = models.ForeignKey(
-        settings.AUTH_USER_MODEL,
-        related_name='revision_requests_created',
-        on_delete=models.SET_NULL,
-        null=True,
-        blank=True,
-    )
-    resolved_by = models.ForeignKey(
-        settings.AUTH_USER_MODEL,
-        related_name='revision_requests_resolved',
-        on_delete=models.SET_NULL,
-        null=True,
-        blank=True,
-    )
-    resolved_at = models.DateTimeField(null=True, blank=True)
-    created_at = models.DateTimeField(auto_now_add=True)
-    updated_at = models.DateTimeField(auto_now=True)
-
-    class Meta:
-        db_table = 'project_revision_requests'
-        ordering = ['-created_at']
-        indexes = [
-            models.Index(fields=['project', 'status'], name='idx_revision_project_status'),
-        ]
-
-    def __str__(self):
-        return self.title
-
-    @property
-    def is_open(self):
-        return self.status == self.STATUS_OPEN
-
-
 class PullRequest(models.Model):
     STATUS_OPEN = 'open'
     STATUS_MERGED = 'merged'
@@ -305,13 +241,6 @@ class PullRequest(models.Model):
     merged_snapshot = models.ForeignKey(
         ProjectSnapshot,
         related_name='pull_requests_merged',
-        on_delete=models.SET_NULL,
-        null=True,
-        blank=True,
-    )
-    revision_request = models.ForeignKey(
-        RevisionRequest,
-        related_name='pull_requests',
         on_delete=models.SET_NULL,
         null=True,
         blank=True,
@@ -563,13 +492,11 @@ class CriterionAssessment(models.Model):
 class Notification(models.Model):
     KIND_INFO = 'info'
     KIND_ASSESSMENT = 'assessment'
-    KIND_REVISION = 'revision'
     KIND_PULL_REQUEST = 'pull_request'
     KIND_GRADE = 'grade'
     KIND_CHOICES = [
         (KIND_INFO, 'Information'),
         (KIND_ASSESSMENT, 'Assessment'),
-        (KIND_REVISION, 'Revision request'),
         (KIND_PULL_REQUEST, 'Pull request'),
         (KIND_GRADE, 'Grade'),
     ]

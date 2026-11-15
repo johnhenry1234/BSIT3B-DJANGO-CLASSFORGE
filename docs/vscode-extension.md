@@ -13,7 +13,6 @@ the editor:
 - local preview of files to upload, including exclusions and SHA-256 checksums,
 - upload progress and clear API errors,
 - feedback status and feedback documents,
-- local branch creation for an open change request,
 - quick access to the ClassForge website.
 
 It is intentionally not a code runner and does not execute workspace code.
@@ -71,8 +70,8 @@ extension offers to sign in again.
 
 ClassForge does not expose a Git remote to VS Code: there is no `git push` to
 ClassForge and no `git pull`/clone from it. In this extension, **push** means
-uploading a new saved version, and **pull** means fetching feedback status,
-feedback, and open change requests. Normal Git can still be used separately for
+uploading a new saved version, and **pull** means fetching feedback status and
+feedback. Normal Git can still be used separately for
 GitHub/GitLab.
 
 Full step-by-step instructions for both actions are in
@@ -109,28 +108,14 @@ The extension mirrors the server policy (see `src/files.ts`):
 
 Preview shows the final list, sizes, checksums, and reasons for exclusions.
 
-## Requested changes
-
-**ClassForge: Start Requested Changes**:
-
-1. fetches open change requests for the selected project,
-2. lets you choose one,
-3. creates and checks out a local branch named after the request
-   (`revision/<project>-<slug>` or the teacher-provided name),
-4. optionally opens the upload command.
-
-Branch operations are local only. The extension does not push, force-push, or
-rewrite history. Send changes for review in the web app/API.
-
 ## Tests
 
 `npm test` runs:
 
 - API client tests with an injected `fetch` (auth, multipart, errors, timeouts),
-- exclusion/file-list tests against a temporary workspace,
-- Git helper tests, including real temporary repositories.
+- exclusion/file-list tests against a temporary workspace.
 
-Git tests require `git` on `PATH`. Network access is not required.
+Network access is not required.
 
 ## Troubleshooting
 
@@ -142,9 +127,6 @@ Git tests require `git` on `PATH`. Network access is not required.
 | `403` on upload | Account has not joined the course or the assignment is not published. |
 | Empty file list/“no files remain” | Check `.classforgeignore`, assignment exclusions, and required secret filters. |
 | “more than N files” / “upload limit” | Remove generated files or raise the limits on both client and server. |
-| Change request command says no open requests | The teacher/TA has not created one for this project. |
-| “not a Git repository” | Open a workspace inside a Git repository (or run `git init`). |
-| Branch already exists | Check it out/delete it, or let the teacher supply another name. |
 
 ## Limitations
 

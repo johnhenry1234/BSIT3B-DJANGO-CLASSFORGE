@@ -1,7 +1,6 @@
 # ClassForge for VS Code
 
-Upload ClassForge project files, check feedback, and start requested changes
-without leaving VS Code.
+Upload ClassForge project files and check feedback without leaving VS Code.
 
 The extension never executes workspace code. It collects files that pass the
 ClassForge exclusion policy, uploads a saved version to the ClassForge server,
@@ -14,7 +13,6 @@ share grades in the web app.
 - A ClassForge account that has joined the target course (or a teacher/TA
   account).
 - VS Code 1.85+.
-- Git, only for the requested-changes command.
 
 ## Install / develop
 
@@ -40,7 +38,7 @@ ClassForge does **not** expose a Git remote to VS Code. There is no `git push`
 to ClassForge and no `git pull`/clone from it. In this extension:
 
 - **Push** = upload the current workspace as a new saved version.
-- **Pull** = fetch feedback status, feedback, and change requests.
+- **Pull** = fetch feedback status and feedback.
 
 Use normal Git separately if you also want GitHub/GitLab push/pull.
 
@@ -70,17 +68,12 @@ Use normal Git separately if you also want GitHub/GitLab push/pull.
 7. **Pull status/feedback:** run **ClassForge: Check Feedback** or
    **ClassForge: View Feedback**. The ClassForge website is available with
    **ClassForge: Open ClassForge Website**.
-8. **Pull requested changes:** when a teacher/TA requests changes, run
-   **ClassForge: Start Requested Changes**, choose the request, commit locally,
-   then upload your new files. Send the changes for review from the project page
-   in the web app.
 
 | Action | Command | Result |
 | --- | --- | --- |
 | Push project | `ClassForge: Upload Project Files` | New saved version uploaded. |
 | Pull status | `ClassForge: Check Feedback` | Latest saved version and feedback status. |
 | Pull feedback | `ClassForge: View Feedback` | Summary, checklist, and shared grade. |
-| Pull requested changes | `ClassForge: Start Requested Changes` | Creates a local branch for an open change request. |
 | Open ClassForge | `ClassForge: Open ClassForge Website` | Opens `/projects/` in the browser. |
 
 Not supported: `git push` to ClassForge, `git pull`/clone of saved versions, or
@@ -101,7 +94,6 @@ The status bar shows the signed-in user and opens feedback status when clicked.
 | `ClassForge: Upload Project Files` | Collect, confirm, and upload files with progress/errors. |
 | `ClassForge: Check Feedback` | Show saved-version details and the latest feedback status. |
 | `ClassForge: View Feedback` | Markdown view of the summary, checklist, and shared grade (if any). |
-| `ClassForge: Start Requested Changes` | Pick an open change request and create/check out a local branch. |
 | `ClassForge: Open ClassForge Website` | Open `/projects/` on the configured server. |
 
 ## Settings
@@ -133,17 +125,6 @@ re-applies all rules, so a modified extension cannot exfiltrate excluded files.
 Paths are normalised to POSIX relative paths; traversal and absolute paths are
 rejected. The preview file list is generated locally with SHA-256 checksums.
 
-## Requested-changes workflow
-
-1. The teacher/TA creates a change request in the web app or API.
-2. In VS Code, run **ClassForge: Start Requested Changes**, choose the request,
-   and commit your work on the created `revision/<project>-<title>` branch.
-3. Upload your new files (they become a new saved version).
-4. Send the changes for review from the project page or API.
-
-Branch creation is local and does not push. The extension never force-pushes or
-rewrites Git history.
-
 ## Security
 
 - Passwords are used only to request an access key and are never stored.
@@ -153,8 +134,7 @@ rewrites Git history.
   administrator in Django admin or through the token revoke API.
 - Workspace files are read locally and uploaded only after an explicit
   confirmation dialog.
-- No workspace code is executed; `git` is invoked with fixed arguments (no
-  shell interpolation).
+- No workspace code is executed.
 
 ## Tests
 
@@ -163,9 +143,8 @@ npm test
 ```
 
 This compiles TypeScript and runs Node's built-in test runner over
-`out/test/*.test.js`. Coverage includes the API client, exclusion/file-list
-logic, and Git branch helpers (including a real temporary repository). Tests use
-only Node built-ins and require `git` on `PATH` for the Git cases.
+`out/test/*.test.js`. Coverage includes the API client and exclusion/file-list
+logic. Tests use only Node built-ins.
 
 ## Limitations
 

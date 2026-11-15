@@ -7,6 +7,13 @@
         <div class="col">
           <div class="page-pretitle">ClassForge · {{ course.code }}</div>
           <h2 class="page-title mb-0">{% if mode == 'create' %}New Assignment{% else %}Edit Assignment{% endif %}</h2>
+          <div class="text-muted mt-1">
+            {% if mode == 'create' %}
+            Add the essentials now. Optional project and feedback settings are available below.
+            {% else %}
+            Update the assignment details and optional settings.
+            {% endif %}
+          </div>
         </div>
       </div>
     </div>
@@ -21,106 +28,148 @@
         {% endif %}
         <div class="row g-3">
           <div class="col-12">
-            <label class="form-label">Title</label>
+            <label class="form-label" for="{{ form.title.id_for_label }}">Title</label>
             {{ form.title }}
             {% if form.title.errors %}<div class="text-danger small">{{ form.title.errors }}</div>{% endif %}
           </div>
           <div class="col-md-6">
-            <label class="form-label">Category</label>
+            <label class="form-label" for="{{ form.category.id_for_label }}">Category</label>
             {{ form.category }}
             {% if form.category.errors %}<div class="text-danger small">{{ form.category.errors }}</div>{% endif %}
           </div>
           <div class="col-md-6">
-            <label class="form-label">Due Date</label>
+            <label class="form-label" for="{{ form.due_date.id_for_label }}">Due date</label>
             {{ form.due_date }}
             {% if form.due_date.errors %}<div class="text-danger small">{{ form.due_date.errors }}</div>{% endif %}
           </div>
           <div class="col-md-6">
-            <label class="form-label">Total points</label>
+            <label class="form-label" for="{{ form.max_score.id_for_label }}">Total points</label>
             {{ form.max_score }}
             {% if form.max_score.errors %}<div class="text-danger small">{{ form.max_score.errors }}</div>{% endif %}
           </div>
           <div class="col-12">
-            <label class="form-label">Description</label>
+            <label class="form-label" for="{{ form.description.id_for_label }}">Description</label>
             {{ form.description }}
+            <small class="form-hint">What students need to do and what they should submit.</small>
             {% if form.description.errors %}<div class="text-danger small">{{ form.description.errors }}</div>{% endif %}
           </div>
           <div class="col-12">
             <div class="card">
-              <div class="card-header"><div class="card-title">Upload settings</div></div>
+              <div class="card-header"><div class="card-title">What students can submit</div></div>
               <div class="card-body row g-3">
-                <div class="col-md-6"><div class="form-check">{{ form.accepts_zip }} <label class="form-check-label">Accept .zip</label></div></div>
-                <div class="col-md-6"><div class="form-check">{{ form.accepts_pdf }} <label class="form-check-label">Accept .pdf</label></div></div>
+                <div class="col-md-6">
+                  <div class="form-check">
+                    {{ form.accepts_zip }}
+                    <label class="form-check-label" for="{{ form.accepts_zip.id_for_label }}">Accept .zip archives</label>
+                  </div>
+                </div>
+                <div class="col-md-6">
+                  <div class="form-check">
+                    {{ form.accepts_pdf }}
+                    <label class="form-check-label" for="{{ form.accepts_pdf.id_for_label }}">Accept .pdf documents</label>
+                  </div>
+                </div>
               </div>
             </div>
+            {% if form.accepts_zip.errors %}<div class="text-danger small">{{ form.accepts_zip.errors }}</div>{% endif %}
+            {% if form.accepts_pdf.errors %}<div class="text-danger small">{{ form.accepts_pdf.errors }}</div>{% endif %}
           </div>
-          <div class="col-12">
-            <label class="form-label">AI guidance for automatic feedback</label>
-            {{ form.guidelines }}
-            {% if form.guidelines.errors %}<div class="text-danger small">{{ form.guidelines.errors }}</div>{% endif %}
-          </div>
-          <div class="col-12">
-            <div class="card">
-              <div class="card-header"><div class="card-title">Project &amp; feedback settings</div></div>
-              <div class="card-body row g-3">
-                <div class="col-md-4">
-                  <label class="form-label">Status</label>{{ form.status }}
-                  {% if form.status.errors %}<div class="text-danger small">{{ form.status.errors }}</div>{% endif %}
-                  <small class="form-hint">Students can submit only when the assignment is available.</small>
-                </div>
-                <div class="col-md-4">
-                  <label class="form-label">Feedback mode</label>{{ form.ai_grading_mode }}
-                  {% if form.ai_grading_mode.errors %}<div class="text-danger small">{{ form.ai_grading_mode.errors }}</div>{% endif %}
-                </div>
-                <div class="col-md-4">
-                  <label class="form-label">Max upload size (MB)</label>{{ form.max_upload_mb }}
-                  {% if form.max_upload_mb.errors %}<div class="text-danger small">{{ form.max_upload_mb.errors }}</div>{% endif %}
-                </div>
-                <div class="col-12">
-                  <label class="form-label">Expected outcomes</label>{{ form.expected_outcomes }}
-                  {% if form.expected_outcomes.errors %}<div class="text-danger small">{{ form.expected_outcomes.errors }}</div>{% endif %}
-                </div>
-                <div class="col-md-6">
-                  <label class="form-label">Allowed file types (one per line)</label>{{ form.accepted_formats }}
-                  <small class="form-hint">e.g. .zip, .sql, .sqlite, .pdf, .md</small>
-                </div>
-                <div class="col-md-6">
-                  <label class="form-label">Required folders (one per line)</label>{{ form.required_directories }}
-                </div>
-                <div class="col-md-6">
-                  <label class="form-label">Required documentation</label>{{ form.documentation_requirements }}
-                </div>
-                <div class="col-md-6">
-                  <label class="form-label">Automatic checks (one per line)</label>{{ form.validation_rules }}
-                  <small class="form-hint">Available checks: require_sql, require_primary_keys, require_foreign_keys, require_readme, require_erd, require_tests, naming_snake_case, forbid_secrets</small>
-                </div>
-                <div class="col-md-6">
-                  <label class="form-label">Test commands to run (one per line)</label>{{ form.required_tests }}
-                  <small class="form-hint">Reported as “not run” unless an isolated test runner is configured.</small>
-                </div>
-                <div class="col-md-6">
-                  <label class="form-label">Files to leave out by default</label>{{ form.default_exclusions }}
-                </div>
-                <div class="col-md-4">
-                  <label class="form-label">Late work policy</label>{{ form.late_policy }}
-                </div>
-                <div class="col-md-4">
-                  <label class="form-label">Late penalty (%)</label>{{ form.late_penalty_percent }}
-                </div>
-                <div class="col-md-4">
-                  <label class="form-label">Days allowed for changes</label>{{ form.revision_deadline_days }}
-                </div>
-                <div class="col-md-6"><div class="form-check">{{ form.manual_review_required }} <label class="form-check-label">Teacher must review AI feedback before it can become a grade</label></div></div>
-                <div class="col-md-6"><div class="form-check">{{ form.allow_resubmission }} <label class="form-check-label">Allow students to upload new versions</label></div></div>
+        </div>
+
+        <div class="mt-3">
+          <details class="card">
+            <summary class="card-header d-flex align-items-center" style="cursor: pointer;">
+              <span class="card-title mb-0"><i class="fas fa-sliders-h me-2 text-muted" aria-hidden="true"></i>Advanced project settings</span>
+              <span class="ms-auto text-muted small">Optional</span>
+            </summary>
+            <div class="card-body row g-3">
+              <div class="col-md-4">
+                <label class="form-label" for="{{ form.status.id_for_label }}">Status</label>
+                {{ form.status }}
+                <small class="form-hint">Students can submit only when the assignment is available.</small>
+                {% if form.status.errors %}<div class="text-danger small">{{ form.status.errors }}</div>{% endif %}
+              </div>
+              <div class="col-md-4">
+                <label class="form-label" for="{{ form.max_upload_mb.id_for_label }}">Max upload size (MB)</label>
+                {{ form.max_upload_mb }}
+                {% if form.max_upload_mb.errors %}<div class="text-danger small">{{ form.max_upload_mb.errors }}</div>{% endif %}
+              </div>
+              <div class="col-12">
+                <label class="form-label" for="{{ form.expected_outcomes.id_for_label }}">Expected outcomes / AI guidelines</label>
+                {{ form.expected_outcomes }}
+                <small class="form-hint">Describe what the finished work must include, such as required files, test commands, and files to exclude. The AI uses this as part of the assignment requirements.</small>
+                {% if form.expected_outcomes.errors %}<div class="text-danger small">{{ form.expected_outcomes.errors }}</div>{% endif %}
+              </div>
+              <div class="col-md-6">
+                <label class="form-label" for="{{ form.accepted_formats.id_for_label }}">Allowed file types (one per line)</label>
+                {{ form.accepted_formats }}
+                <small class="form-hint">e.g. .zip, .sql, .sqlite, .pdf, .md</small>
+              </div>
+              <div class="col-md-6">
+                <label class="form-label" for="{{ form.required_directories.id_for_label }}">Required folders (one per line)</label>
+                {{ form.required_directories }}
+              </div>
+              <div class="col-md-6">
+                <label class="form-label" for="{{ form.documentation_requirements.id_for_label }}">Required documentation</label>
+                {{ form.documentation_requirements }}
+              </div>
+              <div class="col-md-6">
+                <label class="form-label" for="{{ form.validation_rules.id_for_label }}">Automatic checks (one per line)</label>
+                {{ form.validation_rules }}
+                <small class="form-hint">Available checks: require_sql, require_primary_keys, require_foreign_keys, require_readme, require_erd, require_tests, naming_snake_case, forbid_secrets</small>
               </div>
             </div>
-          </div>
-          <div class="col-12">
-            <label class="form-label">Required files (one per line)</label>
-            {{ form.required_files }}
-            {% if form.required_files.errors %}<div class="text-danger small">{{ form.required_files.errors }}</div>{% endif %}
-          </div>
-          <div class="col-md-6"><div class="form-check mt-2">{{ form.ai_auto_run }} <label class="form-check-label">Create AI feedback automatically when guidance is provided</label></div></div>
+          </details>
+        </div>
+
+        <div class="mt-3">
+          <details class="card">
+            <summary class="card-header d-flex align-items-center" style="cursor: pointer;">
+              <span class="card-title mb-0"><i class="fas fa-comments me-2 text-muted" aria-hidden="true"></i>Feedback settings</span>
+              <span class="ms-auto text-muted small">Optional</span>
+            </summary>
+            <div class="card-body row g-3">
+              <div class="col-12">
+                <label class="form-label" for="{{ form.guidelines.id_for_label }}">Additional AI guidance (optional)</label>
+                {{ form.guidelines }}
+                <small class="form-hint">The description and expected outcomes are already used. Add extra grading instructions here only if needed.</small>
+                {% if form.guidelines.errors %}<div class="text-danger small">{{ form.guidelines.errors }}</div>{% endif %}
+              </div>
+              <div class="col-md-4">
+                <label class="form-label" for="{{ form.ai_grading_mode.id_for_label }}">Feedback mode</label>
+                {{ form.ai_grading_mode }}
+                {% if form.ai_grading_mode.errors %}<div class="text-danger small">{{ form.ai_grading_mode.errors }}</div>{% endif %}
+              </div>
+              <div class="col-md-4">
+                <label class="form-label" for="{{ form.late_policy.id_for_label }}">Late work policy</label>
+                {{ form.late_policy }}
+                {% if form.late_policy.errors %}<div class="text-danger small">{{ form.late_policy.errors }}</div>{% endif %}
+              </div>
+              <div class="col-md-4">
+                <label class="form-label" for="{{ form.late_penalty_percent.id_for_label }}">Late penalty (%)</label>
+                {{ form.late_penalty_percent }}
+                {% if form.late_penalty_percent.errors %}<div class="text-danger small">{{ form.late_penalty_percent.errors }}</div>{% endif %}
+              </div>
+              <div class="col-md-6">
+                <div class="form-check">
+                  {{ form.manual_review_required }}
+                  <label class="form-check-label" for="{{ form.manual_review_required.id_for_label }}">Teacher must review AI feedback before it can become a grade</label>
+                </div>
+              </div>
+              <div class="col-md-6">
+                <div class="form-check">
+                  {{ form.allow_resubmission }}
+                  <label class="form-check-label" for="{{ form.allow_resubmission.id_for_label }}">Allow students to upload new versions</label>
+                </div>
+              </div>
+              <div class="col-12">
+                <div class="form-check">
+                  {{ form.ai_auto_run }}
+                  <label class="form-check-label" for="{{ form.ai_auto_run.id_for_label }}">Create AI feedback automatically when guidance is provided</label>
+                </div>
+              </div>
+            </div>
+          </details>
         </div>
       </div>
       <div class="card-footer d-flex gap-2">

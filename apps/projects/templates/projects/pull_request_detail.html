@@ -98,8 +98,6 @@
             <dt class="col-5 text-muted">Status</dt><dd class="col-7">{{ pull_request.get_status_display }}</dd>
             <dt class="col-5 text-muted">Source version</dt>
             <dd class="col-7">{% if pull_request.source_snapshot %}<a href="{% url 'projects:snapshot_detail' pull_request.source_snapshot.id %}">v{{ pull_request.source_snapshot.version }}</a>{% else %}—{% endif %}</dd>
-            <dt class="col-5 text-muted">Change request</dt>
-            <dd class="col-7">{% if pull_request.revision_request %}{{ pull_request.revision_request.title }}{% else %}—{% endif %}</dd>
             <dt class="col-5 text-muted">Reviewed by</dt><dd class="col-7">{% if pull_request.reviewed_by %}{{ pull_request.reviewed_by.get_full_name|default:pull_request.reviewed_by.username }}{% else %}—{% endif %}</dd>
             <dt class="col-5 text-muted">Merged at</dt><dd class="col-7">{{ pull_request.merged_at|date:"M j, Y g:i A"|default:"—" }}</dd>
             <dt class="col-5 text-muted">Merge commit</dt>

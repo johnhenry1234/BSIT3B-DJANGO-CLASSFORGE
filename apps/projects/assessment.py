@@ -986,8 +986,7 @@ ASSIGNMENT
 Title: {assignment.title}
 Category: {assignment.get_category_display()}
 Maximum score: {assignment.effective_max_score}
-Expected outcomes: {assignment.expected_outcomes or 'Not provided.'}
-Guidelines: {assignment.guidelines or 'Not provided.'}
+Assignment requirements and guidelines: {assignment.ai_instructions or 'Not provided.'}
 Documentation requirements: {assignment.documentation_requirements or 'Not provided.'}
 
 RUBRIC CRITERIA

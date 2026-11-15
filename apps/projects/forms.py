@@ -1,6 +1,6 @@
 from django import forms
 
-from .models import Project, PullRequest, RevisionRequest
+from .models import Project, PullRequest
 
 
 class ProjectForm(forms.ModelForm):
@@ -13,30 +13,6 @@ class ProjectForm(forms.ModelForm):
         }
 
 
-class RevisionRequestForm(forms.ModelForm):
-    class Meta:
-        model = RevisionRequest
-        fields = ['title', 'description', 'snapshot', 'branch_name', 'due_date']
-        widgets = {
-            'title': forms.TextInput(attrs={'class': 'form-control'}),
-            'description': forms.Textarea(attrs={'class': 'form-control', 'rows': 4}),
-            'snapshot': forms.Select(attrs={'class': 'form-select'}),
-            'branch_name': forms.TextInput(
-                attrs={'class': 'form-control', 'placeholder': 'revision/feedback-1'}
-            ),
-            'due_date': forms.DateTimeInput(
-                attrs={'class': 'form-control', 'type': 'datetime-local'}
-            ),
-        }
-
-    def __init__(self, *args, project=None, **kwargs):
-        super().__init__(*args, **kwargs)
-        if project is not None:
-            self.fields['snapshot'].queryset = project.snapshots.order_by('-version')
-            self.fields['snapshot'].required = False
-        self.fields['due_date'].required = False
-
-
 class PullRequestForm(forms.ModelForm):
     class Meta:
         model = PullRequest
@@ -46,7 +22,6 @@ class PullRequestForm(forms.ModelForm):
             'source_snapshot',
             'source_branch',
             'target_branch',
-            'revision_request',
         ]
         widgets = {
             'title': forms.TextInput(attrs={'class': 'form-control'}),
@@ -54,7 +29,6 @@ class PullRequestForm(forms.ModelForm):
             'source_snapshot': forms.Select(attrs={'class': 'form-select'}),
             'source_branch': forms.TextInput(attrs={'class': 'form-control'}),
             'target_branch': forms.TextInput(attrs={'class': 'form-control'}),
-            'revision_request': forms.Select(attrs={'class': 'form-select'}),
         }
 
     def __init__(self, *args, project=None, **kwargs):
@@ -62,10 +36,6 @@ class PullRequestForm(forms.ModelForm):
         if project is not None:
             self.fields['source_snapshot'].queryset = project.snapshots.order_by('-version')
             self.fields['source_snapshot'].required = True
-            self.fields['revision_request'].queryset = project.revision_requests.filter(
-                status=RevisionRequest.STATUS_OPEN
-            )
-        self.fields['revision_request'].required = False
 
 
 class AssessmentReviewForm(forms.Form):

@@ -39,21 +39,17 @@ class AssignmentForm(forms.ModelForm):
             'max_score',
             'status',
             'guidelines',
-            'required_files',
             'expected_outcomes',
             'accepted_formats',
             'required_directories',
             'documentation_requirements',
             'validation_rules',
-            'required_tests',
             'max_upload_mb',
             'ai_grading_mode',
             'manual_review_required',
             'late_policy',
             'late_penalty_percent',
             'allow_resubmission',
-            'revision_deadline_days',
-            'default_exclusions',
             'accepts_zip',
             'accepts_pdf',
             'ai_auto_run',
@@ -74,15 +70,8 @@ class AssignmentForm(forms.ModelForm):
                     'placeholder': 'e.g. Must include a working CRUD module, a README, and an ERD.',
                 }
             ),
-            'required_files': forms.Textarea(
-                attrs={
-                    'class': 'form-control',
-                    'rows': 4,
-                    'placeholder': 'README.md\nrequirements.txt\nschema.sql',
-                }
-            ),
             'expected_outcomes': forms.Textarea(
-                attrs={'class': 'form-control', 'rows': 3}
+                attrs={'class': 'form-control', 'rows': 4}
             ),
             'accepted_formats': forms.Textarea(
                 attrs={
@@ -104,13 +93,6 @@ class AssignmentForm(forms.ModelForm):
                     'placeholder': 'require_readme\nrequire_primary_keys\nrequire_foreign_keys\nforbid_secrets',
                 }
             ),
-            'required_tests': forms.Textarea(
-                attrs={
-                    'class': 'form-control',
-                    'rows': 3,
-                    'placeholder': 'python manage.py test',
-                }
-            ),
             'max_upload_mb': forms.NumberInput(attrs={'class': 'form-control'}),
             'ai_grading_mode': forms.Select(attrs={'class': 'form-select'}),
             'manual_review_required': forms.CheckboxInput(
@@ -123,14 +105,6 @@ class AssignmentForm(forms.ModelForm):
             'allow_resubmission': forms.CheckboxInput(
                 attrs={'class': 'form-check-input'}
             ),
-            'revision_deadline_days': forms.NumberInput(attrs={'class': 'form-control'}),
-            'default_exclusions': forms.Textarea(
-                attrs={
-                    'class': 'form-control',
-                    'rows': 3,
-                    'placeholder': '*.log\ntmp/**\n.env.local',
-                }
-            ),
             'accepts_zip': forms.CheckboxInput(attrs={'class': 'form-check-input'}),
             'accepts_pdf': forms.CheckboxInput(attrs={'class': 'form-check-input'}),
             'ai_auto_run': forms.CheckboxInput(attrs={'class': 'form-check-input'}),
@@ -138,16 +112,18 @@ class AssignmentForm(forms.ModelForm):
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        self.fields['status'].choices = [
-            ('draft', 'Draft'),
-            ('published', 'Available'),
-            ('archived', 'Archived'),
-        ]
-        self.fields['ai_grading_mode'].choices = [
-            ('instructor_approved', 'Teacher review required'),
-            ('automatic', 'Automatic feedback (suggested score, review still available)'),
-            ('advisory', 'Teacher grades with automatic feedback'),
-        ]
+        if 'status' in self.fields:
+            self.fields['status'].choices = [
+                ('draft', 'Draft'),
+                ('published', 'Available'),
+                ('archived', 'Archived'),
+            ]
+        if 'ai_grading_mode' in self.fields:
+            self.fields['ai_grading_mode'].choices = [
+                ('instructor_approved', 'Teacher review required'),
+                ('automatic', 'Automatic feedback (suggested score, review still available)'),
+                ('advisory', 'Teacher grades with automatic feedback'),
+            ]
 
     def clean(self):
         cleaned = super().clean()

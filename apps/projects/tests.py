@@ -45,7 +45,6 @@ from apps.projects.models import (
     Project,
     ProjectSnapshot,
     PullRequest,
-    RevisionRequest,
 )
 
 User = get_user_model()
@@ -1095,36 +1094,8 @@ class ApiProjectAndAssessmentTests(WorkspaceTestCase):
         titles = [item['title'] for item in response.json()['assignments']]
         self.assertEqual(titles, ['Capstone Project'])
 
-    def test_revision_and_pull_request_lifecycle(self):
-        # Instructor requests a revision.
-        response = self.api(
-            'post',
-            reverse('projects_api:revision_create', args=[self.project.pk]),
-            token=self.instructor_token,
-            data={
-                'title': 'Add tests',
-                'description': 'Please add integration tests.',
-                'snapshot_id': self.snapshot.pk,
-            },
-        )
-        self.assertEqual(response.status_code, 201, response.content)
-        revision_id = response.json()['revision_request']['id']
-        self.assertTrue(
-            Notification.objects.filter(
-                user=self.student, kind=Notification.KIND_REVISION
-            ).exists()
-        )
-
-        # A student may not request a revision.
-        response = self.api(
-            'post',
-            reverse('projects_api:revision_create', args=[self.project.pk]),
-            token=self.student_token,
-            data={'title': 'Nope'},
-        )
-        self.assertEqual(response.status_code, 403)
-
-        # Student opens a pull request against the revision.
+    def test_pull_request_lifecycle(self):
+        # Student opens a pull request.
         response = self.api(
             'post',
             reverse('projects_api:pull_request_create', args=[self.project.pk]),
@@ -1133,8 +1104,7 @@ class ApiProjectAndAssessmentTests(WorkspaceTestCase):
                 'title': 'Add tests',
                 'description': 'Added the tests.',
                 'source_snapshot_id': self.snapshot.pk,
-                'revision_request_id': revision_id,
-                'source_branch': 'revision/1',
+                'source_branch': 'feature',
             },
         )
         self.assertEqual(response.status_code, 201, response.content)
@@ -1168,8 +1138,6 @@ class ApiProjectAndAssessmentTests(WorkspaceTestCase):
         pull_request = PullRequest.objects.get(pk=pull_request_id)
         self.assertEqual(pull_request.status, PullRequest.STATUS_MERGED)
         self.assertEqual(pull_request.reviewed_by_id, self.instructor.pk)
-        revision = RevisionRequest.objects.get(pk=revision_id)
-        self.assertEqual(revision.status, RevisionRequest.STATUS_ADDRESSED)
         self.assertTrue(
             Notification.objects.filter(
                 user=self.student, kind=Notification.KIND_PULL_REQUEST
@@ -1443,33 +1411,6 @@ class ProjectWebTests(WorkspaceTestCase):
         )
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, 'README.md')
-
-    def test_instructor_creates_revision_and_student_cannot(self):
-        self.client.force_login(self.student)
-        response = self.client.get(
-            reverse('projects:revision_create', args=[self.project.pk])
-        )
-        self.assertEqual(response.status_code, 403)
-
-        self.client.force_login(self.instructor)
-        response = self.client.post(
-            reverse('projects:revision_create', args=[self.project.pk]),
-            {
-                'title': 'Improve docs',
-                'description': 'Add an ERD.',
-                'snapshot': self.snapshot.pk,
-                'branch_name': 'revision/1',
-            },
-        )
-        self.assertEqual(response.status_code, 302)
-        revision = RevisionRequest.objects.get(project=self.project)
-        self.assertEqual(revision.branch_name, 'revision/1')
-        self.assertTrue(
-            Notification.objects.filter(
-                user=self.student, kind=Notification.KIND_REVISION
-            ).exists()
-        )
-
 
 class CourseIntegrationTests(WorkspaceTestCase):
     def test_web_submission_zip_is_mirrored_into_a_snapshot(self):

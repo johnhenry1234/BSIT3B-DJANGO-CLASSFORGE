@@ -1,7 +1,7 @@
 {
   "name": "classforge-vscode",
   "displayName": "ClassForge",
-  "description": "Upload ClassForge projects, view feedback and start requested changes without leaving VS Code.",
+  "description": "Upload ClassForge projects and view feedback without leaving VS Code.",
   "version": "0.1.0",
   "publisher": "classforge",
   "license": "MIT",
@@ -53,10 +53,6 @@
       {
         "command": "classforge.showFeedback",
         "title": "ClassForge: View Feedback"
-      },
-      {
-        "command": "classforge.createRevisionBranch",
-        "title": "ClassForge: Start Requested Changes"
       },
       {
         "command": "classforge.openDashboard",

@@ -46,7 +46,7 @@ def request_evaluation(submission, requested_by=None, *, dispatch=True):
     evaluation = AIEvaluation.objects.create(
         submission=submission,
         requested_by=requested_by,
-        guideline_snapshot=submission.assignment.guidelines or '',
+        guideline_snapshot=submission.assignment.ai_instructions,
         model_name=_model_label(),
     )
     log_activity(

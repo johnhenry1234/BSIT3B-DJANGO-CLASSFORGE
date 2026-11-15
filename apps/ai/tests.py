@@ -67,6 +67,22 @@ class SubmissionFeedbackTests(SimpleTestCase):
             ['The README explains the project.'],
         )
 
+    def test_prompt_uses_the_assignment_instructions(self):
+        assignment = SimpleNamespace(
+            title='CRUD project',
+            get_category_display=lambda: 'Code Project',
+            max_score=Decimal('100.00'),
+            ai_instructions='Build a CRUD app with authentication and a README.',
+            required_files='README.md',
+            rubric=None,
+        )
+
+        prompt = inspector.build_prompt(self.report, assignment)
+
+        self.assertIn(
+            'Build a CRUD app with authentication and a README.', prompt
+        )
+
     def test_legacy_string_llm_feedback_is_accepted(self):
         data = {
             'summary': 'The files are mostly complete.',

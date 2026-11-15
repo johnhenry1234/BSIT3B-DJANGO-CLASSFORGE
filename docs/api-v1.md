@@ -88,8 +88,8 @@ Authorization: Bearer cf_…
 
 | Method | Path | Description |
 | --- | --- | --- |
-| `GET` | `/projects/` | Up to 100 visible projects with latest snapshot and open revision/PR counts. |
-| `GET` | `/projects/{id}/` | Project detail, 50 newest snapshots, revision requests, pull requests. |
+| `GET` | `/projects/` | Up to 100 visible projects with latest snapshot and open PR counts. |
+| `GET` | `/projects/{id}/` | Project detail, 50 newest snapshots, pull requests. |
 | `GET` | `/projects/{id}/snapshots/` | Up to 100 snapshots for a project. |
 | `GET` | `/snapshots/{id}/` | Snapshot detail with full manifest, validation, metadata, parent/previous IDs. |
 | `GET` | `/snapshots/{id}/status/` | Snapshot summary plus latest assessment. |
@@ -138,22 +138,13 @@ archive takes precedence.
 `submission` and `assessment` may be `null`. Assessments only run automatically
 when the assignment enables `ai_auto_run`.
 
-### Revision requests (`read` / `write`)
-
-| Method | Path | Description |
-| --- | --- | --- |
-| `GET` | `/revisions/` | Visible revision requests (students see their own). |
-| `GET` | `/projects/{id}/revisions/` | Revision requests for one project. |
-| `POST` | `/projects/{id}/revisions/new/` | Instructor/TA creates a revision request (`title` required; optional `description`, `snapshot_id`, `branch_name`). |
-| `POST` | `/revisions/{id}/` | Instructor/TA updates `status` to `open`, `addressed`, or `closed`. |
-
 ### Pull requests (`read` / `write`)
 
 | Method | Path | Description |
 | --- | --- | --- |
 | `GET` | `/pull-requests/` | Visible pull requests. |
 | `GET` | `/projects/{id}/pull-requests/` | Pull requests for one project. |
-| `POST` | `/projects/{id}/pull-requests/new/` | Open a PR. Requires at least one snapshot. Fields: `title` (required), `description`, `source_snapshot_id`, `revision_request_id`, `source_branch`, `target_branch`. |
+| `POST` | `/projects/{id}/pull-requests/new/` | Open a PR. Requires at least one snapshot. Fields: `title` (required), `description`, `source_snapshot_id`, `source_branch`, `target_branch`. |
 | `POST` | `/pull-requests/{id}/action/` | `{"action": "comment", "body": "..."}`, `{"action": "merge"}`, or `{"action": "close", "reason": "..."}`. Merge/close require instructor/TA. |
 
 ### Notifications (`read` / `write`)
@@ -190,7 +181,7 @@ curl -H "Authorization: Bearer cf_..." \
 | Code | Meaning |
 | --- | --- |
 | `200` | Success. |
-| `201` | Token/snapshot/revision/PR created. |
+| `201` | Token/snapshot/PR created. |
 | `202` | Assessment accepted. |
 | `400` | Invalid JSON/fields or unsatisfiable request. |
 | `401` | Missing/invalid/expired token. |

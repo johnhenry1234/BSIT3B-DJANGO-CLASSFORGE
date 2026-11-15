@@ -31,7 +31,6 @@ from .forms import (
     CommentForm,
     ProjectForm,
     PullRequestForm,
-    RevisionRequestForm,
 )
 from .models import (
     Assessment,
@@ -40,7 +39,6 @@ from .models import (
     ProjectSnapshot,
     PullRequest,
     PullRequestComment,
-    RevisionRequest,
 )
 
 logger = logging.getLogger(__name__)
@@ -196,9 +194,6 @@ def project_detail(request, pk):
         .select_related('snapshot', 'reviewer')
         .order_by('-created_at')[:10]
     )
-    revisions = project.revision_requests.select_related(
-        'requested_by', 'snapshot'
-    ).order_by('-created_at')
     pull_requests = project.pull_requests.select_related(
         'created_by', 'source_snapshot'
     ).order_by('-created_at')
@@ -218,7 +213,6 @@ def project_detail(request, pk):
             'snapshots': snapshots,
             'latest_snapshot': latest,
             'assessments': assessments,
-            'revisions': revisions,
             'pull_requests': pull_requests,
             'can_grade': can_grade_course(request.user, project.assignment.course),
             'can_manage': can_manage_course(request.user, project.assignment.course),
@@ -645,80 +639,6 @@ def assessment_retry(request, pk):
 
 
 @login_required(login_url='login')
-def revision_create(request, project_pk):
-    project = _project_or_403(request.user, project_pk)
-    _require_grader(request.user, project)
-    if request.method == 'POST':
-        form = RevisionRequestForm(request.POST, project=project)
-        if form.is_valid():
-            revision = form.save(commit=False)
-            revision.project = project
-            revision.requested_by = request.user
-            if not revision.branch_name:
-                revision.branch_name = f'revision/{project.pk}-{RevisionRequest.objects.filter(project=project).count() + 1}'
-            revision.save()
-            services.notify(
-                project.student,
-                kind=Notification.KIND_REVISION,
-                title=f'Changes requested: {revision.title}',
-                body=revision.description[:1000],
-                url=f'/projects/{project.pk}/',
-                project=project,
-                snapshot=revision.snapshot,
-            )
-            log_activity(
-                request,
-                action='project.revision.requested',
-                entity=revision,
-                description=f'Changes requested for {project}',
-                metadata={'course_id': project.assignment.course_id},
-            )
-            messages.success(request, 'Change request sent to the student.')
-            return redirect('projects:project_detail', pk=project.pk)
-    else:
-        initial = {
-            'snapshot': project.latest_snapshot,
-            'branch_name': f'revision/{project.pk}-{project.revision_requests.count() + 1}',
-        }
-        form = RevisionRequestForm(project=project, initial=initial)
-    return render(
-        request,
-        'projects/revision_form.html',
-        {'project': project, 'form': form},
-    )
-
-
-@login_required(login_url='login')
-@require_POST
-def revision_update(request, pk):
-    revision = get_object_or_404(
-        RevisionRequest.objects.select_related(
-            'project__assignment__course', 'project__student'
-        ),
-        pk=pk,
-    )
-    _require_grader(request.user, revision.project)
-    status = request.POST.get('status', '')
-    if status not in dict(RevisionRequest.STATUS_CHOICES):
-        messages.error(request, 'Invalid change request status.')
-    else:
-        revision.status = status
-        if status in (RevisionRequest.STATUS_ADDRESSED, RevisionRequest.STATUS_CLOSED):
-            revision.resolved_by = request.user
-            revision.resolved_at = timezone.now()
-        revision.save()
-        messages.success(request, 'Change request updated.')
-        log_activity(
-            request,
-            action=f'project.revision.{status}',
-            entity=revision,
-            description=f'Revision {status} for {revision.project}',
-            metadata={'course_id': revision.project.assignment.course_id},
-        )
-    return redirect('projects:project_detail', pk=revision.project_id)
-
-
-@login_required(login_url='login')
 def pull_request_create(request, project_pk):
     project = _project_or_403(request.user, project_pk)
     if not (
@@ -818,14 +738,6 @@ def pull_request_detail(request, pk):
                     repository.last_commit_sha = merge_sha or repository.last_commit_sha
                     repository.save(
                         update_fields=['current_branch', 'last_commit_sha', 'updated_at']
-                    )
-                if pull_request.revision_request_id:
-                    revision = pull_request.revision_request
-                    revision.status = RevisionRequest.STATUS_ADDRESSED
-                    revision.resolved_by = request.user
-                    revision.resolved_at = timezone.now()
-                    revision.save(
-                        update_fields=['status', 'resolved_by', 'resolved_at', 'updated_at']
                     )
                 services.notify(
                     project.student,
