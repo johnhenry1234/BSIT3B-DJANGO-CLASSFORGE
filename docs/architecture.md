@@ -92,19 +92,31 @@ assessments and bounded by `ASSESSMENT_MAX_ATTEMPTS`:
    documentation, validation rules, tests, missing-file and risky-pattern
    checks. Test execution is reported as `disabled`/`not run` unless a separate
    isolated runner is configured.
-3. **Local rubric draft** — evidence-based, deterministic scores and comments
-   from the criteria. This is always available and is the fallback.
-4. **Optional AI draft** — if `AI_API_KEY` is set, an OpenAI-compatible
-   chat-completions request is made. The response must be valid JSON and is
-   validated strictly (known criterion IDs, no duplicates, points within
-   bounds, required fields, total score consistency). Invalid output is rejected
-   and the local draft is kept; the engine label records the failure.
-5. **Persist** — `Assessment` + `CriterionAssessment` records are written in a
+3. **Guideline comparison** — `apps.projects.guidelines` turns the assignment
+   description, expected outcomes, guidelines, documentation requirements and
+   structured file/folder lists into named requirements, then checks each one
+   against the saved files. A feature that is only mentioned in documentation
+   is reported as *partly met*; unknown wording becomes *needs review* rather
+   than a guessed pass or fail. The comparison is stored in
+   `Assessment.validation['guidelines']` and rendered in the review UI.
+4. **Local rubric draft** — evidence-based, deterministic scores and comments
+   from the criteria. Each criterion blends the file/hygiene checks with the
+   guideline coverage for its evidence categories. This is always available
+   and is the fallback.
+5. **Optional AI draft** — if `AI_API_KEY` is set, an OpenAI-compatible
+   chat-completions request is made and receives the guideline comparison. The
+   response must be valid JSON and is validated strictly (known criterion IDs,
+   no duplicates, points within bounds, required fields, total score
+   consistency). Invalid output is rejected and the local draft is kept; the
+   engine label records the failure. The deterministic guideline statuses
+   remain the evidence of record; AI prose cannot turn a missing requirement
+   into a pass.
+6. **Persist** — `Assessment` + `CriterionAssessment` records are written in a
    transaction.
-6. **Apply (optional)** — only when the assignment is in automatic mode *and*
+7. **Apply (optional)** — only when the assignment is in automatic mode *and*
    manual review is disabled. Even then the created `Grade` is unpublished until
    an instructor publishes it.
-7. **Notify + audit** — staff/student notifications and activity log entries.
+8. **Notify + audit** — staff/student notifications and activity log entries.
 
 ### Grading modes
 

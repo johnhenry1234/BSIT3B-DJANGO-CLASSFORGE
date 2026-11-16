@@ -187,6 +187,48 @@
         </div>
       </div>
       {% endif %}
+
+      {% with comparison=assessment.validation.guidelines rows=assessment.validation.guideline_rows %}
+      {% if comparison.total %}
+      <div class="card mt-3">
+        <div class="card-header d-flex align-items-center">
+          <div class="card-title">Guideline comparison</div>
+          <div class="ms-auto d-flex flex-wrap gap-2">
+            {% if comparison.coverage %}<span class="badge bg-azure-lt text-azure">Coverage {{ comparison.coverage|floatformat:2 }}</span>{% endif %}
+            <span class="badge bg-success-lt text-success">Met {{ comparison.counts.pass|default:0 }}</span>
+            <span class="badge bg-warning-lt text-warning">Partly {{ comparison.counts.warn|default:0 }}</span>
+            <span class="badge bg-danger-lt text-danger">Missing {{ comparison.counts.fail|default:0 }}</span>
+          </div>
+        </div>
+        {% if comparison.summary %}<div class="card-body pb-0 text-muted small">{{ comparison.summary }}</div>{% endif %}
+        <div class="table-responsive">
+          <table class="table table-vcenter card-table">
+            <thead><tr><th>Guideline requirement</th><th>Result</th><th>Evidence found</th></tr></thead>
+            <tbody>
+              {% for row in rows %}
+              <tr>
+                <td style="max-width: 340px; white-space: normal;">
+                  <div class="fw-semibold">{{ row.label }}</div>
+                  <div class="text-muted small">{{ row.requirement|truncatechars:180 }}</div>
+                </td>
+                <td class="text-nowrap">
+                  {% if row.status == 'pass' %}<span class="badge bg-success-lt text-success">Met</span>
+                  {% elif row.status == 'fail' %}<span class="badge bg-danger-lt text-danger">Not met</span>
+                  {% elif row.status == 'skipped' %}<span class="badge bg-secondary-lt text-secondary">Needs review</span>
+                  {% else %}<span class="badge bg-warning-lt text-warning">Partly met</span>{% endif %}
+                </td>
+                <td style="max-width: 280px; white-space: normal;">
+                  <div class="small">{{ row.found|truncatechars:220 }}</div>
+                  {% if row.message and row.message != row.found %}<div class="text-muted small">{{ row.message|truncatechars:220 }}</div>{% endif %}
+                </td>
+              </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+      </div>
+      {% endif %}
+      {% endwith %}
     </div>
 
     <div class="col-lg-5">

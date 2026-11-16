@@ -37,7 +37,7 @@ from apps.courses.models import (
     Submission,
 )
 from apps.projects import assessment as assessment_module
-from apps.projects import highlighting, parsers, services
+from apps.projects import guidelines, highlighting, parsers, services
 from apps.projects.models import (
     ApiToken,
     Assessment,
@@ -445,6 +445,193 @@ class ParserTests(SimpleTestCase):
         self.assertTrue(overview['has_readme'])
         self.assertTrue(overview['has_erd'])
         self.assertEqual(overview['tests'], 1)
+        self.assertIn('README.md', artifacts['structure']['paths'])
+        self.assertTrue(
+            any(item['path'] == 'src/app.py' for item in artifacts['text'])
+        )
+
+    def test_extract_artifacts_ignores_placeholder_secrets(self):
+        archive_bytes = make_zip(
+            {
+                'README.md': '# Demo\n\nUse password = "your_password" in the example.',
+                'src/settings.py': (
+                    'API_KEY = "your_api_key"\n'
+                    'password = "hunter2-real-secret"\n'
+                ),
+            }
+        )
+        manifest, _, _ = services.inspect_archive(archive_bytes)
+        artifacts = parsers.extract_artifacts(archive_bytes, manifest, None)
+        secret_paths = {item['path'] for item in artifacts['secrets']}
+        self.assertIn('src/settings.py', secret_paths)
+        self.assertNotIn('README.md', secret_paths)
+
+
+# ---------------------------------------------------------------------------
+# Guideline comparison
+# ---------------------------------------------------------------------------
+
+class GuidelineComparisonTests(SimpleTestCase):
+    def make_assignment(self, **overrides):
+        values = {
+            'title': 'Library system',
+            'description': 'Build a library system with a login feature.',
+            'guidelines': (
+                'You must include a login feature and a database schema.\n'
+                'Add tests for the main features.'
+            ),
+            'required_files': 'README.md\nschema.sql',
+            'required_directories': 'src',
+            'documentation_requirements': 'A README explaining how to run the app.',
+        }
+        values.update(overrides)
+        return Assignment(**values)
+
+    def test_extracts_explicit_and_feature_requirements(self):
+        requirements = guidelines.extract_requirements(self.make_assignment())
+        kinds = {item['kind'] for item in requirements}
+        labels = ' '.join(item['label'] for item in requirements)
+
+        self.assertIn('file', kinds)
+        self.assertIn('directory', kinds)
+        self.assertIn('documentation', kinds)
+        self.assertIn('feature', kinds)
+        self.assertIn('Login / authentication', labels)
+        self.assertIn('Database / schema', labels)
+        self.assertIn('Automated tests', labels)
+        self.assertTrue(all(item['id'].startswith('req-') for item in requirements))
+        self.assertTrue(
+            any(item['target'] == 'README.md' and item['mandatory'] for item in requirements)
+        )
+
+    def test_compares_guidelines_with_saved_evidence(self):
+        requirements = guidelines.extract_requirements(self.make_assignment())
+        artifacts = {
+            'structure': {
+                'paths': [
+                    'README.md',
+                    'schema.sql',
+                    'src/app.py',
+                    'src/auth.py',
+                    'tests/test_app.py',
+                ],
+            },
+            'readme': {
+                'path': 'README.md',
+                'excerpt': '# Library\n\nRun the app and sign in.',
+            },
+            'docs': [],
+            'text': [
+                {
+                    'path': 'src/auth.py',
+                    'text': 'def login(username, password):\n    return True\n',
+                },
+                {
+                    'path': 'src/app.py',
+                    'text': 'def main():\n    return "library"\n',
+                },
+            ],
+            'sql': {
+                'files': [
+                    {
+                        'path': 'schema.sql',
+                        'tables': [
+                            {'name': 'books', 'columns': [{'name': 'id'}]},
+                        ],
+                    }
+                ]
+            },
+            'databases': [],
+            'erd': {},
+            'tests': ['tests/test_app.py'],
+            'project_files': [],
+            'suspicious': [],
+            'secrets': [],
+        }
+        report = guidelines.evaluate_requirements(requirements, artifacts)
+        items = {item['label']: item for item in report['items']}
+
+        self.assertEqual(items['Required file: README.md']['status'], 'pass')
+        self.assertEqual(items['Required folder: src']['status'], 'pass')
+        self.assertEqual(items['Login / authentication']['status'], 'pass')
+        self.assertEqual(items['Database / schema']['status'], 'pass')
+        self.assertEqual(items['Automated tests']['status'], 'pass')
+        self.assertGreater(report['coverage'], 0.9)
+        self.assertEqual(report['counts']['fail'], 0)
+
+        rows = guidelines.comparison_rows(report)
+        self.assertTrue(rows)
+        self.assertTrue(all({'requirement', 'status', 'found'} <= set(row) for row in rows))
+        safe = guidelines.to_json(report)
+        self.assertIsInstance(safe['coverage'], str)
+        self.assertEqual(safe['total'], report['total'])
+
+    def test_documentation_only_mention_is_partly_met(self):
+        assignment = self.make_assignment(
+            description='',
+            guidelines='You must include a login feature.',
+            required_files='',
+            required_directories='',
+            documentation_requirements='',
+        )
+        requirements = guidelines.extract_requirements(assignment)
+        artifacts = {
+            'structure': {'paths': ['README.md']},
+            'readme': {
+                'path': 'README.md',
+                'excerpt': 'The planned login feature is described here.',
+            },
+            'docs': [],
+            'text': [],
+            'sql': {'files': []},
+            'databases': [],
+            'erd': {},
+            'tests': [],
+            'project_files': [],
+            'suspicious': [],
+            'secrets': [],
+        }
+        report = guidelines.evaluate_requirements(requirements, artifacts)
+        login = next(
+            item for item in report['items']
+            if item['label'] == 'Login / authentication'
+        )
+        self.assertEqual(login['status'], 'warn')
+        self.assertIn('Partly met', login['message'])
+        self.assertIn('README.md', login['evidence'])
+
+    def test_ai_prompt_includes_the_deterministic_comparison(self):
+        assignment = self.make_assignment()
+        requirements = guidelines.extract_requirements(assignment)
+        artifacts = {
+            'structure': {'paths': ['README.md']},
+            'readme': {'path': 'README.md', 'excerpt': 'Login is planned.'},
+            'docs': [],
+            'text': [],
+            'sql': {'files': []},
+            'databases': [],
+            'erd': {},
+            'tests': [],
+        }
+        report = guidelines.evaluate_requirements(requirements, artifacts)
+        criteria = [
+            {
+                'criterion_id': 1,
+                'name': 'Implementation',
+                'description': 'Working code.',
+                'max_points': Decimal('10'),
+                'expected_evidence': 'src/',
+                'scoring_guidance': '',
+                'ai_instructions': '',
+                'feedback_requirements': '',
+            }
+        ]
+        prompt = assessment_module.build_prompt(
+            assignment, None, artifacts, [], criteria, report
+        )
+        self.assertIn('GUIDELINE COMPARISON', prompt)
+        self.assertIn('Login / authentication', prompt)
+        self.assertIn('Do not turn a "fail" into a pass', prompt)
 
 
 # ---------------------------------------------------------------------------
@@ -531,6 +718,80 @@ class AssessmentPipelineTests(WorkspaceTestCase):
         self.assertEqual(checks['require_readme']['status'], 'fail')
         self.assertEqual(checks['require_sql']['status'], 'fail')
         self.assertLess(assessment.overall_score, Decimal('100.00'))
+
+    def test_guideline_comparison_is_persisted_with_checks_and_feedback(self):
+        assessment = assessment_module.request_assessment(self.snapshot, self.instructor)
+
+        comparison = assessment.validation['guidelines']
+        self.assertGreater(comparison['total'], 0)
+        self.assertIn('coverage', comparison)
+        self.assertEqual(
+            len(assessment.validation['guideline_rows']), comparison['total']
+        )
+        guideline_checks = [
+            item for item in assessment.checks if item['key'].startswith('guideline:')
+        ]
+        self.assertTrue(guideline_checks)
+        self.assertTrue(
+            any(item['key'] == 'guideline:req-1' for item in guideline_checks)
+        )
+        self.assertIn('Guideline coverage', assessment.summary)
+        self.assertIn('Guideline comparison', assessment.validation['feedback_sections']['overview'])
+
+    def test_documentation_only_feature_lowers_the_draft_score(self):
+        self.assignment.guidelines = 'You must include a login feature.'
+        self.assignment.description = 'Build a library system.'
+        self.assignment.save(update_fields=['guidelines', 'description'])
+        # Make the implementation criterion care about the login guideline so
+        # the comparison can influence the rubric score.
+        self.criterion_code.description = (
+            'Working code, database schema, and login authentication.'
+        )
+        self.criterion_code.save(update_fields=['description'])
+        services.publish_rubric(self.rubric, self.instructor)
+
+        documented = self.make_snapshot(
+            {
+                'README.md': '# Library\n\nThe login feature is planned.',
+                'src/app.py': 'print("library")\n',
+            }
+        )
+        implemented = self.make_snapshot(
+            {
+                'README.md': '# Library\n\nUsers can log in.',
+                'src/app.py': 'def login(username, password):\n    return True\n',
+            }
+        )
+
+        documented_assessment = assessment_module.request_assessment(
+            documented, self.instructor
+        )
+        implemented_assessment = assessment_module.request_assessment(
+            implemented, self.instructor
+        )
+
+        documented_login = next(
+            item for item in documented_assessment.validation['guidelines']['items']
+            if item['label'] == 'Login / authentication'
+        )
+        implemented_login = next(
+            item for item in implemented_assessment.validation['guidelines']['items']
+            if item['label'] == 'Login / authentication'
+        )
+        self.assertEqual(documented_login['status'], 'warn')
+        self.assertEqual(implemented_login['status'], 'pass')
+        self.assertLess(
+            documented_assessment.overall_score,
+            implemented_assessment.overall_score,
+        )
+        self.assertTrue(
+            any(
+                'Login / authentication' in item
+                for item in documented_assessment.validation['feedback_sections'][
+                    'improvements'
+                ]
+            )
+        )
 
     def test_secret_check_flags_snapshot(self):
         snapshot = self.make_snapshot(
@@ -1318,7 +1579,9 @@ class ProjectWebTests(WorkspaceTestCase):
         self.assertEqual(self.client.get(url).status_code, 403)
 
         self.client.force_login(self.instructor)
-        self.assertEqual(self.client.get(url).status_code, 200)
+        response = self.client.get(url)
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, 'Guideline comparison')
 
         response = self.client.post(
             url,
@@ -1359,6 +1622,7 @@ class ProjectWebTests(WorkspaceTestCase):
         )
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, 'schema.sql')
+        self.assertContains(response, 'Guideline comparison')
 
     def test_access_key_management_page_is_not_exposed(self):
         self.client.force_login(self.student)

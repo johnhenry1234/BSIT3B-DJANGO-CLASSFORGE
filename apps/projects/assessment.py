@@ -39,7 +39,7 @@ from apps.core.feedback import (
 )
 from apps.courses.models import RubricVersion
 
-from . import parsers, services
+from . import guidelines, parsers, services
 from .models import (
     Assessment,
     CriterionAssessment,
@@ -184,9 +184,18 @@ def run_assessment(assessment_id):
         artifacts = parsers.extract_artifacts(
             archive_bytes, assessment.snapshot.manifest, assignment
         )
-        checks = run_checks(assignment, assessment.snapshot, artifacts)
+        requirements = guidelines.extract_requirements(assignment)
+        guideline_report = guidelines.evaluate_requirements(requirements, artifacts)
+        checks = run_checks(
+            assignment,
+            assessment.snapshot,
+            artifacts,
+            guideline_report=guideline_report,
+        )
         criteria = rubric_criteria(assessment)
-        local = local_assessment(assignment, artifacts, checks, criteria)
+        local = local_assessment(
+            assignment, artifacts, checks, criteria, guideline_report
+        )
 
         payload = local
         engine = Assessment.ENGINE_LOCAL
@@ -195,7 +204,12 @@ def run_assessment(assessment_id):
 
         if _ai_configured():
             prompt = build_prompt(
-                assignment, assessment.snapshot, artifacts, checks, criteria
+                assignment,
+                assessment.snapshot,
+                artifacts,
+                checks,
+                criteria,
+                guideline_report,
             )
             try:
                 raw_response, data = call_ai(prompt)
@@ -222,6 +236,8 @@ def run_assessment(assessment_id):
                 'checks': checks,
                 'counts': check_counts(checks),
                 'feedback_sections': payload.get('feedback_sections', {}),
+                'guidelines': guidelines.to_json(guideline_report),
+                'guideline_rows': guidelines.comparison_rows(guideline_report),
             }
             assessment.checks = checks
             assessment.structure = artifacts.get('structure', {})
@@ -310,7 +326,7 @@ def _check(key, label, status, message, evidence=''):
     }
 
 
-def run_checks(assignment, snapshot, artifacts):
+def run_checks(assignment, snapshot, artifacts, guideline_report=None):
     manifest = snapshot.manifest or []
     paths = [item.get('path', '') for item in manifest]
     basenames = {path.rsplit('/', 1)[-1].lower(): path for path in paths}
@@ -542,6 +558,13 @@ def run_checks(assignment, snapshot, artifacts):
                 )
             )
 
+    # Explicit, guideline-by-guideline checks.  These are additional to the
+    # legacy file/rule checks above so existing keys and contracts stay stable.
+    for item in (guideline_report or {}).get('items', []):
+        if item.get('status') == guidelines.CHECK_SKIPPED:
+            continue
+        checks.append(guidelines.requirement_check(item))
+
     return checks
 
 
@@ -637,7 +660,13 @@ def _evidence_for(criterion, artifacts, checks):
 
 
 def _local_factor(checks, artifacts):
-    counts = check_counts(checks)
+    # Guideline checks are scored separately from the category coverage, so
+    # exclude them here to avoid penalising the same gap twice.
+    hygiene_checks = [
+        check for check in checks
+        if not str(check.get('key') or '').startswith('guideline:')
+    ]
+    counts = check_counts(hygiene_checks)
     factor = Decimal('1.0')
     factor -= Decimal(counts.get(CHECK_FAIL, 0)) * Decimal('0.16')
     factor -= Decimal(counts.get(CHECK_WARN, 0)) * Decimal('0.05')
@@ -685,7 +714,46 @@ def _check_next_step(check):
     return f'Review the "{label}" check and fix the issue described above.'
 
 
-def _local_strengths(artifacts):
+def _guideline_next_step(item):
+    """Turn one unmet guideline item into a concrete student action."""
+    step = clean_text(item.get('next_step') or '', limit=400)
+    if step:
+        return step
+    kind = item.get('kind')
+    target = item.get('target') or ''
+    label = clean_text(item.get('label') or item.get('text') or 'the guideline', limit=200)
+    if kind == 'file':
+        return f'Add the required file "{target}" to the saved version.'
+    if kind == 'directory':
+        return f'Add the required folder "{target}" and put the expected work inside it.'
+    if kind == 'documentation':
+        return 'Add or extend the README/documentation so it covers this requirement.'
+    return f'Make "{label}" clearly visible in the saved files.'
+
+
+def _unmet_guidelines(guideline_report):
+    return [
+        item for item in (guideline_report or {}).get('items', [])
+        if item.get('status') in (CHECK_FAIL, CHECK_WARN)
+    ]
+
+
+def _guideline_covered_keys(guideline_report):
+    """Legacy check keys already explained by the guideline comparison."""
+    covered = set()
+    for item in (guideline_report or {}).get('items', []):
+        kind = item.get('kind')
+        target = item.get('target') or ''
+        if kind == 'file':
+            covered.add(f'required_file:{target}')
+        elif kind == 'directory':
+            covered.add(f'required_directory:{target}')
+        elif kind == 'documentation':
+            covered.add('documentation_requirements')
+    return covered
+
+
+def _local_strengths(artifacts, guideline_report=None):
     overview = parsers.artifact_overview(artifacts)
     strengths = []
 
@@ -706,18 +774,47 @@ def _local_strengths(artifacts):
     if overview['tests']:
         strengths.append('Test files are included. This check did not run them.')
 
+    for item in (guideline_report or {}).get('items', []):
+        if item.get('status') != CHECK_PASS:
+            continue
+        label = clean_text(item.get('label') or item.get('text') or '', limit=180)
+        if not label:
+            continue
+        evidence = clean_text(item.get('evidence') or '', limit=120)
+        if evidence:
+            strengths.append(f'You met the guideline "{label}" (evidence: {evidence}).')
+        else:
+            strengths.append(f'You met the guideline "{label}".')
+        if len(strengths) >= 6:
+            break
+
     if not strengths:
         strengths.append('The saved version could be opened and inspected successfully.')
-    return clean_items(strengths)
+    return clean_items(strengths)[:6]
 
 
-def _local_improvements(checks):
+def _local_improvements(checks, guideline_report=None):
     improvements = []
     for status in (CHECK_FAIL, CHECK_WARN):
+        for item in _unmet_guidelines(guideline_report):
+            if item.get('status') != status:
+                continue
+            label = clean_text(item.get('label') or 'Guideline', limit=200)
+            message = clean_text(item.get('message') or '', limit=700)
+            improvements.append(f'{label}: {message}')
+            if len(improvements) >= 6:
+                break
+        if len(improvements) >= 6:
+            break
+
+    covered_keys = _guideline_covered_keys(guideline_report)
+    for status in (CHECK_FAIL, CHECK_WARN):
         for check in checks:
+            key = str(check.get('key') or '')
+            if key.startswith('guideline:') or key in covered_keys:
+                continue
             if check.get('status') != status:
                 continue
-            key = str(check.get('key') or '')
             label = clean_text(check.get('label') or 'Check', limit=200)
             message = clean_text(check.get('message') or '', limit=700)
             if key.startswith(('required_file:', 'required_directory:')):
@@ -734,13 +831,30 @@ def _local_improvements(checks):
             'No required files or checks were missing. Your teacher will still review '
             'the quality of the code and documentation.'
         )
-    return clean_items(improvements)
+    # Keep the first occurrence of each message so a missing file is not listed
+    # once by the guideline comparison and again by the legacy file check.
+    deduped = list(dict.fromkeys(clean_items(improvements)))
+    return deduped[:6]
 
 
-def _local_next_steps(checks):
+def _local_next_steps(checks, guideline_report=None):
     steps = []
     for status in (CHECK_FAIL, CHECK_WARN):
+        for item in _unmet_guidelines(guideline_report):
+            if item.get('status') != status:
+                continue
+            steps.append(_guideline_next_step(item))
+            if len(steps) >= 5:
+                break
+        if len(steps) >= 5:
+            break
+
+    covered_keys = _guideline_covered_keys(guideline_report)
+    for status in (CHECK_FAIL, CHECK_WARN):
         for check in checks:
+            key = str(check.get('key') or '')
+            if key.startswith('guideline:') or key in covered_keys:
+                continue
             if check.get('status') != status:
                 continue
             steps.append(_check_next_step(check))
@@ -754,10 +868,21 @@ def _local_next_steps(checks):
             'Ask your teacher to review this draft and explain any score or comment '
             'you do not understand.'
         )
-    return clean_items(steps)
+    deduped = list(dict.fromkeys(clean_items(steps)))
+    return deduped[:5]
 
 
-def _local_overview(artifacts, checks):
+def _coverage_percent(report):
+    coverage = (report or {}).get('coverage')
+    if coverage is None:
+        return None
+    try:
+        return int((Decimal(str(coverage)) * Decimal('100')).quantize(Decimal('1')))
+    except (InvalidOperation, TypeError, ValueError):
+        return None
+
+
+def _local_overview(artifacts, checks, guideline_report=None):
     counts = check_counts(checks)
     overview = parsers.artifact_overview(artifacts)
     parts = [
@@ -786,10 +911,18 @@ def _local_overview(artifacts, checks):
         parts.append('The automatic file checks passed.')
         if counts.get(CHECK_SKIPPED, 0):
             parts.append(f'{counts[CHECK_SKIPPED]} check(s) were not run here.')
+
+    if (guideline_report or {}).get('total'):
+        percent = _coverage_percent(guideline_report)
+        summary = clean_text(guideline_report.get('summary') or '', limit=400)
+        if summary:
+            parts.append(f'Guideline comparison: {summary}')
+        if percent is not None:
+            parts.append(f'Guideline coverage is about {percent}%.')
     return clean_text(' '.join(parts), limit=2_000)
 
 
-def _local_summary(artifacts, checks):
+def _local_summary(artifacts, checks, guideline_report=None):
     counts = check_counts(checks)
     overview = parsers.artifact_overview(artifacts)
     if counts.get(CHECK_FAIL, 0):
@@ -800,12 +933,16 @@ def _local_summary(artifacts, checks):
         lead = 'The saved version meets the automatic file checks'
         if counts.get(CHECK_SKIPPED, 0):
             lead += f'; {counts[CHECK_SKIPPED]} check(s) were not run'
-    return (
+    parts = [
         f'{lead}. {overview["files"]} file(s) inspected; no code, tests, or SQL were run.'
-    )
+    ]
+    percent = _coverage_percent(guideline_report)
+    if percent is not None:
+        parts.append(f'Guideline coverage: {percent}%.')
+    return ' '.join(parts)
 
 
-def _criterion_comment(points, maximum, hits):
+def _criterion_comment(points, maximum, hits, coverage=None, related=None):
     ratio = (points / maximum) if maximum else Decimal('0')
     if ratio >= Decimal('0.85'):
         band = 'This is a strong result.'
@@ -815,6 +952,11 @@ def _criterion_comment(points, maximum, hits):
         band = 'This item needs more work.'
 
     parts = [f'{band} The draft gives this item {points}/{maximum}.']
+    if coverage is not None:
+        parts.append(
+            f'The assignment guidelines related to this item are '
+            f'{_coverage_percent({"coverage": coverage})}% covered.'
+        )
     if hits:
         parts.append('Evidence found: ' + ', '.join(hits[:3]) + '.')
     else:
@@ -822,10 +964,25 @@ def _criterion_comment(points, maximum, hits):
             'The automatic check did not find clear evidence for this item, so your '
             'teacher should check it manually.'
         )
+    if related:
+        met = [
+            clean_text(item.get('label') or '', limit=90)
+            for item in related
+            if item.get('status') == CHECK_PASS
+        ]
+        missing = [
+            clean_text(item.get('label') or '', limit=90)
+            for item in related
+            if item.get('status') in (CHECK_FAIL, CHECK_WARN)
+        ]
+        if met:
+            parts.append('Met guidelines: ' + ', '.join(met[:3]) + '.')
+        if missing:
+            parts.append('Needs attention: ' + ', '.join(missing[:3]) + '.')
     return ' '.join(parts)
 
 
-def local_assessment(assignment, artifacts, checks, criteria):
+def local_assessment(assignment, artifacts, checks, criteria, guideline_report=None):
     counts = check_counts(checks)
     structure = artifacts.get('structure', {})
     sql_info = artifacts.get('sql', {})
@@ -888,13 +1045,50 @@ def local_assessment(assignment, artifacts, checks, criteria):
                 factor += Decimal('0.05') if (overview['sql_tables'] or overview['databases'] or overview['has_erd']) else Decimal('-0.22')
             if any(word in text for word in ('test', 'validation', 'quality')):
                 factor += Decimal('0.04') if overview['tests'] else Decimal('-0.08')
-            factor -= Decimal(counts.get(CHECK_FAIL, 0)) * Decimal('0.01')
+            # ``counts`` includes guideline checks, but they are already
+            # reflected in the coverage blend below.  Only the legacy hygiene
+            # checks feed this small adjustment.
+            factor -= Decimal(
+                sum(
+                    1 for check in checks
+                    if check.get('status') == CHECK_FAIL
+                    and not str(check.get('key') or '').startswith('guideline:')
+                )
+            ) * Decimal('0.01')
             factor = max(Decimal('0.25'), min(factor, Decimal('1.0')))
+
+            # Blend the file/hygiene heuristic with the explicit guideline
+            # coverage for the categories this criterion cares about.
+            categories = guidelines.criterion_categories(criterion)
+            coverage = guidelines.category_coverage(guideline_report, categories)
+            related = guidelines.related_items(guideline_report, categories)
+            if coverage is not None:
+                factor = (
+                    factor * Decimal('0.60') + coverage * Decimal('0.40')
+                ).quantize(Decimal('0.01'), rounding=ROUND_HALF_UP)
+                factor = max(Decimal('0.20'), min(factor, Decimal('1.0')))
+
             points = (Decimal(criterion['max_points']) * factor).quantize(
                 Decimal('0.01'), rounding=ROUND_HALF_UP
             )
             total += points
             hits = _evidence_for(criterion, artifacts, checks)
+            guideline_evidence = [
+                clean_text(item.get('evidence') or '', limit=160)
+                for item in related
+                if item.get('evidence')
+            ]
+            if guideline_evidence:
+                hits = list(dict.fromkeys(hits + guideline_evidence))
+            if coverage is not None:
+                confidence = (
+                    Decimal('0.30')
+                    + coverage * Decimal('0.45')
+                    + (Decimal('0.15') if hits else Decimal('0'))
+                )
+            else:
+                confidence = Decimal('0.55') if hits else Decimal('0.35')
+            confidence = max(Decimal('0'), min(confidence, Decimal('1')))
             criterion_results.append(
                 {
                     'criterion_id': criterion['criterion_id'],
@@ -905,22 +1099,30 @@ def local_assessment(assignment, artifacts, checks, criteria):
                         points,
                         Decimal(criterion['max_points']),
                         hits,
+                        coverage=coverage,
+                        related=related,
                     ),
                     'evidence': ', '.join(hits[:5]),
-                    'confidence': Decimal('0.55') if hits else Decimal('0.35'),
+                    'confidence': confidence.quantize(Decimal('0.01')),
                 }
             )
         score = min(total, assignment.effective_max_score)
     else:
-        score = (assignment.effective_max_score * base_factor).quantize(
+        factor = base_factor
+        coverage = (guideline_report or {}).get('coverage')
+        if coverage is not None:
+            factor = (
+                factor * Decimal('0.60') + Decimal(str(coverage)) * Decimal('0.40')
+            ).quantize(Decimal('0.01'), rounding=ROUND_HALF_UP)
+        score = (assignment.effective_max_score * factor).quantize(
             Decimal('0.01'), rounding=ROUND_HALF_UP
         )
 
     sections = {
-        'overview': _local_overview(artifacts, checks),
-        'strengths': _local_strengths(artifacts),
-        'improvements': _local_improvements(checks),
-        'next_steps': _local_next_steps(checks),
+        'overview': _local_overview(artifacts, checks, guideline_report),
+        'strengths': _local_strengths(artifacts, guideline_report),
+        'improvements': _local_improvements(checks, guideline_report),
+        'next_steps': _local_next_steps(checks, guideline_report),
     }
     feedback = format_sections(sections)
     if feedback:
@@ -930,7 +1132,7 @@ def local_assessment(assignment, artifacts, checks, criteria):
 
     return {
         'score': max(Decimal('0'), min(score, assignment.effective_max_score)),
-        'summary': _local_summary(artifacts, checks),
+        'summary': _local_summary(artifacts, checks, guideline_report),
         'feedback': feedback,
         'feedback_sections': {**sections, 'note': FEEDBACK_NOTE},
         'criteria': criterion_results,
@@ -953,7 +1155,9 @@ def _model_label():
     )[:255]
 
 
-def build_prompt(assignment, snapshot, artifacts, checks, criteria):
+def build_prompt(
+    assignment, snapshot, artifacts, checks, criteria, guideline_report=None
+):
     criteria_text = '\n'.join(
         f'- id={item["criterion_id"]} | {item["name"]} | max {item["max_points"]} points | '
         f'{item.get("description", "")} | evidence: {item.get("expected_evidence", "")} | '
@@ -965,6 +1169,28 @@ def build_prompt(assignment, snapshot, artifacts, checks, criteria):
         f'- [{item["status"]}] {item["label"]}: {item["message"]}'
         for item in checks
     ) or '- none'
+    guideline_rows = guidelines.comparison_rows(guideline_report)
+    guideline_lines = []
+    for row in guideline_rows[:40]:
+        label = row.get('label') or ''
+        requirement = row.get('requirement') or label
+        if label and label not in requirement:
+            requirement = f'{label} — {requirement}'
+        guideline_lines.append(
+            f'- [{row["status"]}] {requirement} | {row["found"]}'
+        )
+    guideline_text = '\n'.join(guideline_lines) or (
+        '- No explicit guideline requirements were detected.'
+    )
+    guideline_coverage = _coverage_percent(guideline_report)
+    guideline_coverage_text = (
+        f'{guideline_coverage}%'
+        if guideline_coverage is not None
+        else 'not available'
+    )
+    guideline_summary = clean_text(
+        (guideline_report or {}).get('summary') or '', limit=500
+    )
     readme = (artifacts.get('readme') or {}).get('excerpt', '')
     docs = '\n'.join(
         f'--- {item["path"]} ---\n{item.get("excerpt", "")[:1500]}'
@@ -996,6 +1222,11 @@ DETERMINISTIC CHECKS
 These checks only inspect the saved files. They do not prove that the work runs correctly.
 {checks_text}
 
+GUIDELINE COMPARISON (deterministic)
+{guideline_summary}
+Coverage: {guideline_coverage_text}
+{guideline_text}
+
 EVIDENCE (untrusted)
 README:
 {readme[:5000]}
@@ -1016,9 +1247,10 @@ YOUR WRITING TASK
 Write feedback for a student who may not know technical language. Use short, direct sentences. Address the student as "you". Explain the reason for each comment, and refer to the exact file, folder, SQL object, or check that supports it.
 
 Rules for the student-facing feedback:
+- Treat the GUIDELINE COMPARISON as the evidence of record. Do not turn a "fail" into a pass, or a "warn" into a full pass, just because the prose sounds positive.
 - strengths: 2 to 4 specific things the student did well. Only include a strength the evidence supports.
-- improvements: 2 to 4 specific things to improve. Explain what is missing or unclear and why it matters.
-- next_steps: 2 to 4 concrete actions the student can take next. Start each one with a verb.
+- improvements: 2 to 4 specific things to improve. Reference the exact guideline requirement and explain what is missing or unclear and why it matters.
+- next_steps: 2 to 4 concrete actions the student can take next. Start each one with a verb and name the file, folder, or feature involved.
 - If there is not enough evidence for a point, say what the teacher should verify instead of guessing.
 - Do not repeat the same idea in more than one section.
 - Do not mention JSON, prompts, rubric versions, confidence values, or "deterministic" checks.
@@ -1215,6 +1447,13 @@ def validate_ai_payload(data, criteria, max_score):
 
 def _compact_artifacts(artifacts):
     compact = dict(artifacts)
+    # The source-text index is only needed while comparing guidelines; it is
+    # not persisted with the assessment.
+    compact.pop('text', None)
+    compact['structure'] = {
+        **artifacts.get('structure', {}),
+        'paths': artifacts.get('structure', {}).get('paths', [])[:200],
+    }
     compact['readme'] = (
         {
             'path': artifacts['readme'].get('path', ''),

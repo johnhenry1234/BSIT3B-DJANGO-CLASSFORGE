@@ -33,6 +33,8 @@ from .services import (
 MAX_TEXT_BYTES = 160_000
 MAX_DB_BYTES = 20 * 1024 * 1024
 MAX_EXCERPT = 6000
+MAX_INDEX_FILES = 120
+MAX_INDEX_CHARS = 8000
 
 SECRET_PATTERNS = [
     ('private_key', re.compile(r'-----BEGIN (RSA |EC |OPENSSH )?PRIVATE KEY-----')),
@@ -69,6 +71,12 @@ SQL_TABLE_ANY_RE = re.compile(
 MERMAID_ENTITY_RE = re.compile(
     r'^\s*([A-Za-z_][A-Za-z0-9_]*)\s*(?:\{|\|\||})', re.MULTILINE
 )
+PLACEHOLDER_SECRETS = {
+    'password', 'passwd', 'secret', 'api_key', 'apikey', 'access_token',
+    'your_password', 'yourpassword', 'your_secret', 'yoursecret',
+    'your_api_key', 'yourapikey', 'changeme', 'change_me', 'example',
+    'placeholder', 'xxxxxxxx', '********', 'token', 'none', 'null',
+}
 
 
 def _decode(data):
@@ -78,6 +86,25 @@ def _decode(data):
         except (UnicodeDecodeError, LookupError):
             continue
     return data.decode('utf-8', errors='replace')
+
+
+def _secret_is_placeholder(kind, matched_text):
+    """Ignore documented example values such as ``password = "your_password"``."""
+    if kind != 'generic_secret':
+        return False
+    quoted = re.search(r'[\'"]([^\'"\n]+)[\'"]', matched_text)
+    if not quoted:
+        return False
+    value = quoted.group(1).strip().lower()
+    if value in PLACEHOLDER_SECRETS:
+        return True
+    if value.startswith(('<', '{{', '$', '%')):
+        return True
+    if any(marker in value for marker in ('your_', 'your-', 'example', 'sample')):
+        return True
+    if set(value) <= {'*', 'x', 'X', '.', '-'}:
+        return True
+    return False
 
 
 def _entry_map(manifest):
@@ -346,11 +373,13 @@ def extract_artifacts(archive_bytes, manifest, assignment=None):
         'project_files': [],
         'suspicious': [],
         'secrets': [],
+        'text': [],
         'structure': {
             'directories': [],
             'extensions': {},
             'entry_points': [],
             'top_level': [],
+            'paths': [],
             'code_files': 0,
             'documentation_files': 0,
         },
@@ -435,13 +464,28 @@ def extract_artifacts(archive_bytes, manifest, assignment=None):
             if ext in TEXT_EXTENSIONS and item.get('size', 0) <= MAX_TEXT_BYTES:
                 text = _read(archive, path, item)
                 for kind, pattern in SECRET_PATTERNS:
-                    match = pattern.search(text)
-                    if match:
-                        line = text[:match.start()].count('\n') + 1
-                        results['secrets'].append(
-                            {'path': path, 'kind': kind, 'line': line}
-                        )
-                        break
+                    match = None
+                    for candidate in pattern.finditer(text):
+                        if not _secret_is_placeholder(kind, candidate.group(0)):
+                            match = candidate
+                            break
+                    if match is None:
+                        continue
+                    line = text[:match.start()].count('\n') + 1
+                    results['secrets'].append(
+                        {'path': path, 'kind': kind, 'line': line}
+                    )
+                    break
+                # Keep a short, read-only index of source text so guideline
+                # comparison can look for features without re-opening the
+                # archive.  Documentation is already captured above.
+                if (
+                    ext not in DOC_EXTENSIONS
+                    and len(results['text']) < MAX_INDEX_FILES
+                ):
+                    results['text'].append(
+                        {'path': path, 'text': text[:MAX_INDEX_CHARS]}
+                    )
                 for key, pattern, severity, message in SUSPICIOUS_PATTERNS:
                     match = pattern.search(text)
                     if match:
@@ -462,6 +506,7 @@ def extract_artifacts(archive_bytes, manifest, assignment=None):
             sorted(extensions.items(), key=lambda pair: (-pair[1], pair[0]))[:20]
         )
         results['structure']['top_level'] = sorted(top_level)[:40]
+        results['structure']['paths'] = paths[:500]
         results['erd'] = _diagram_summary(paths, archive, entries, manifest)
 
     # De-duplicate by (path, kind, line).
